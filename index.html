@@ -275,10 +275,10 @@ tr.tr-new:hover td { background: #fff3b0; }
     <div>
       <div class="subtitle" data-i18n="subtitle">合作类 · 非合作类 · 赛事类 数据聚合视图</div>
     </div>
-  </div>
-  <div class="meta-line">
-    <span data-i18n="source">数据源: 飞书表「【新】热门活动场次监控」</span> ·
-    <span data-i18n="updated">更新: <span id="update-date"></span></span>
+    <div class="meta-line">
+      <span data-i18n="source">数据源: 飞书表「【新】热门活动场次监控」</span> ·
+      <span data-i18n="updated">更新: <span id="update-date"></span></span>
+    </div>
   </div>
 </header>
 
@@ -461,7 +461,7 @@ tr.tr-new:hover td { background: #fff3b0; }
   const RAW = JSON.parse(document.getElementById('data').textContent);
   const DICT = JSON.parse(document.getElementById('dict').textContent);
   let RECORDS = RAW.records;
-  document.getElementById('update-date').textContent = new Date().toLocaleDateString();
+  document.getElementById('update-date').textContent = new Date().toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false });
 
   // chip label 翻译: 用浏览器端 DICT(国家/品类/赛事类型),其他直接返回原值
   function translate(value, kind) {
