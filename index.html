@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>热门活动场次监控 Dashboard</title>
+<style>
+/* ===== Trip admin design tokens ===== */
+:root {
+  --c-primary:    #2b75ff;
+  --c-primary-bg: #eaf3ff;
+  --c-warn:       #ff7a45;
+  --c-warn-bg:    #fff4ee;
+  --c-danger:     #ff4d4f;
+  --c-danger-bg:  #fff1f0;
+  --c-success:    #1ba974;
+  --c-success-bg: #e8f8f0;
+  --c-tier:       #7a3df0;
+  --c-tier-bg:    #f4ecff;
+  --c-text:       #1f2329;
+  --c-text-2:     #4a5160;
+  --c-muted:      #9aa0aa;
+  --c-disabled:   #c9ccd1;
+  --c-line:       #ebedf0;
+  --c-bg:         #f5f6f8;
+  --c-white:      #ffffff;
+  --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-pill: 14px;
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-7:32px;
+  --fz-xs:11px; --fz-sm:12px; --fz-md:13px; --fz-lg:14px; --fz-xl:16px;
+  --sh-card: 0 1px 3px rgba(20,40,80,.06);
+  --sh-pop:  0 4px 12px rgba(0,0,0,.12);
+  --z-sticky-th: 12; --z-sticky-left: 11; --z-sticky-right: 10;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: var(--fz-md); color: var(--c-text); background: var(--c-bg);
+}
+
+/* ===== Watermark ===== */
+body::before {
+  content: attr(data-watermark);
+  position: fixed; inset: 0;
+  display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(8, 1fr);
+  pointer-events: none; z-index: 9999;
+  color: rgba(120,130,150,.06); font-size: 13px; white-space: pre;
+}
+
+/* ===== Shell ===== */
+.topbar {
+  height: 56px; background: var(--c-primary); color: #fff;
+  display: flex; align-items: center; padding: 0 28px;
+  box-shadow: 0 2px 4px rgba(0,0,0,.06); position: relative; z-index: 30;
+}
+.topbar .brand { font-size: 16px; font-weight: 600; letter-spacing: .3px; }
+.topbar .spacer { flex: 1; }
+.topbar .topbar-actions { display: flex; align-items: center; gap: 8px; }
+.topbar .lang-btn {
+  background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.25);
+  padding: 4px 12px; border-radius: var(--r-sm); font-size: var(--fz-sm);
+  cursor: pointer; transition: .15s; font-family: inherit;
+}
+.topbar .lang-btn:hover { background: rgba(255,255,255,.25); }
+.topbar .lang-btn.active { background: #fff; color: var(--c-primary); border-color: #fff; }
+.topbar .avatar {
+  width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.2);
+  margin-left: 8px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: var(--fz-sm); font-weight: 600;
+}
+
+.layout { display: flex; height: calc(100vh - 56px); min-height: 0; }
+
+.main {
+  flex: 1; min-width: 0; height: 100%;
+  overflow: auto; position: relative;
+}
+
+/* ===== Page header ===== */
+header.top-header {
+  padding: 20px 28px 12px;
+  background: var(--c-white);
+  border-bottom: 1px solid var(--c-line);
+}
+.header-row {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 2px;
+}
+h1 { margin: 0; font-size: 20px; font-weight: 700; color: var(--c-text); letter-spacing: -.01em; }
+.subtitle { color: var(--c-muted); font-size: var(--fz-sm); margin-top: 3px; }
+.meta-line { color: var(--c-muted); font-size: var(--fz-xs); padding-top: 6px; }
+
+/* ===== Filter bar ===== */
+.filter-bar {
+  background: var(--c-white);
+  border-bottom: 1px solid var(--c-line);
+  padding: 10px 28px;
+  box-shadow: 0 1px 4px rgba(20,40,80,.04);
+}
+.filter-row {
+  display: flex; align-items: flex-start; column-gap: 8px; row-gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.chips-line { display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; row-gap: 8px; flex: 1; min-width: 0; }
+.filter-row:last-child { margin-bottom: 0; }
+.filter-label {
+  font-size: var(--fz-xs); color: var(--c-muted); min-width: 56px;
+  text-transform: uppercase; letter-spacing: .04em; font-weight: 600;
+  line-height: 26px; flex-shrink: 0;
+}
+.chip {
+  padding: 3px 12px; border-radius: var(--r-pill); font-size: var(--fz-xs); cursor: pointer;
+  background: transparent; color: var(--c-text-2); border: 1px solid var(--c-line);
+  user-select: none; transition: all .12s; white-space: nowrap;
+}
+.chip:hover { border-color: var(--c-primary); color: var(--c-primary); background: var(--c-primary-bg); }
+.chip.active { color: var(--c-primary); border-color: var(--c-primary); background: var(--c-primary-bg); font-weight: 500; }
+.chip .cnt { color: var(--c-muted); font-size: 10px; margin-left: 4px; font-variant-numeric: tabular-nums; }
+.chip.active .cnt { color: var(--c-primary); opacity: .7; }
+.search-box {
+  background: var(--c-white); color: var(--c-text); border: 1px solid var(--c-line);
+  padding: 0 10px; height: 30px; border-radius: var(--r-sm); font-size: var(--fz-sm);
+  min-width: 240px; font-family: inherit; transition: border-color .15s;
+}
+.search-box:focus { outline: none; border-color: var(--c-primary); }
+.reset-btn {
+  background: transparent; border: 1px solid var(--c-line); color: var(--c-text-2);
+  padding: 0 12px; height: 28px; border-radius: var(--r-sm); cursor: pointer;
+  font-size: var(--fz-xs); margin-left: auto; font-family: inherit; transition: .15s;
+}
+.reset-btn:hover { border-color: var(--c-danger); color: var(--c-danger); }
+
+/* ===== Page content ===== */
+.page-content { padding: 20px 28px 60px; }
+.section { margin-bottom: 28px; }
+.section-title {
+  font-size: 15px; font-weight: 600; margin: 0 0 14px; padding-left: 10px;
+  border-left: 3px solid var(--c-primary); color: var(--c-text); line-height: 1.3;
+}
+
+/* ===== Overview cards ===== */
+.overview-grid {
+  display: grid; grid-template-columns: 1fr 1.4fr 1.4fr; gap: 14px;
+}
+@media (max-width: 900px) { .overview-grid { grid-template-columns: 1fr; } }
+.card {
+  background: var(--c-white); border: 1px solid var(--c-line);
+  border-radius: var(--r-lg); padding: 18px; box-shadow: var(--sh-card);
+}
+.card-title {
+  font-size: var(--fz-xs); color: var(--c-muted); text-transform: uppercase;
+  letter-spacing: .06em; margin-bottom: 12px; font-weight: 600;
+}
+.big-num {
+  font-size: 40px; font-weight: 700; letter-spacing: -.02em; line-height: 1;
+  font-variant-numeric: tabular-nums; color: var(--c-text);
+}
+.big-num-label { font-size: var(--fz-sm); color: var(--c-muted); margin-top: 4px; }
+.source-breakdown { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; font-size: var(--fz-sm); }
+.source-breakdown .row { display: flex; justify-content: space-between; }
+.source-breakdown .row span:last-child { color: var(--c-muted); font-variant-numeric: tabular-nums; }
+
+.grade-list { display: flex; flex-direction: column; gap: 8px; }
+.grade-row { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; font-size: var(--fz-sm); }
+.grade-tag {
+  font-weight: 700; text-align: center; padding: 2px 6px; border-radius: var(--r-sm);
+  font-size: var(--fz-xs);
+}
+.grade-bar { height: 6px; background: var(--c-line); border-radius: 3px; overflow: hidden; }
+.grade-bar-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+.grade-cnt { font-variant-numeric: tabular-nums; color: var(--c-muted); font-size: var(--fz-xs); min-width: 28px; text-align: right; }
+
+.top-list { display: flex; flex-direction: column; gap: 8px; }
+.top-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; font-size: var(--fz-sm); }
+.top-rank { color: var(--c-muted); font-size: var(--fz-xs); font-variant-numeric: tabular-nums; }
+.top-cnt { color: var(--c-muted); font-variant-numeric: tabular-nums; font-size: var(--fz-xs); }
+
+/* ===== Month sections ===== */
+.month-header {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--c-line);
+}
+.month-name { font-size: 20px; font-weight: 700; color: var(--c-text); letter-spacing: -.01em; }
+.month-count {
+  background: var(--c-primary-bg); color: var(--c-primary);
+  padding: 2px 10px; border-radius: var(--r-pill); font-size: var(--fz-xs); font-weight: 500;
+}
+.month-grade-pill {
+  padding: 2px 8px; border-radius: var(--r-pill); font-size: 10px; font-weight: 600;
+}
+
+/* ===== Table ===== */
+.table-wrap { border: 1px solid var(--c-line); border-radius: var(--r-lg); overflow: auto; background: var(--c-white); }
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--fz-sm); }
+thead th {
+  position: sticky; top: 0; z-index: var(--z-sticky-th);
+  text-align: left; padding: 9px 12px; font-weight: 500; color: var(--c-text-2);
+  font-size: var(--fz-xs); text-transform: uppercase; letter-spacing: .04em;
+  white-space: nowrap; border-bottom: 1px solid var(--c-line);
+  background: #f7f8fa; cursor: pointer; user-select: none;
+}
+thead th:hover { color: var(--c-primary); }
+tbody td {
+  padding: 9px 12px; border-bottom: 1px solid var(--c-line);
+  vertical-align: top; max-width: 300px; background: var(--c-white); color: var(--c-text);
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: #f8faff; }
+td.num, td.date { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.wrap { word-break: break-word; white-space: pre-wrap; }
+.empty { color: var(--c-disabled); }
+/* column min-widths */
+table th:nth-child(1)  { width: 40px; }
+table th:nth-child(4)  { min-width: 200px; }
+table th:nth-child(6)  { min-width: 160px; }
+table th:nth-child(10), table th:nth-child(11), table th:nth-child(15),
+table th:nth-child(16), table th:nth-child(17) { min-width: 100px; }
+table th:nth-child(12) { min-width: 120px; }
+table th:nth-child(13) { min-width: 130px; }
+table th:nth-child(14) { min-width: 160px; }
+table th:nth-child(19), table th:nth-child(20) { min-width: 160px; }
+table th:nth-child(21) { min-width: 280px; }
+/* new records highlight (added within last 7 days) */
+tr.tr-new td { background: #fffbe6; }
+tr.tr-new:hover td { background: #fff3b0; }
+
+/* ===== Tags & badges ===== */
+.tag {
+  display: inline-block; padding: 2px 10px; border-radius: var(--r-sm);
+  font-size: var(--fz-xs); font-weight: 600; line-height: 18px;
+}
+.tag-grade-S\+, .tag-grade-S-plus { background: var(--c-danger-bg); color: var(--c-danger); }
+.tag-grade-S  { background: var(--c-warn-bg);    color: var(--c-warn); }
+.tag-grade-A  { background: var(--c-success-bg); color: var(--c-success); }
+.tag-grade-B  { background: var(--c-primary-bg); color: var(--c-primary); }
+.tag-grade-C  { background: #f0f1f4; color: var(--c-muted); }
+.tag-grade-D  { background: #f7f8fa; color: var(--c-disabled); }
+.tag-cat { background: var(--c-primary-bg); color: var(--c-primary); padding: 2px 10px; border-radius: var(--r-sm); font-size: var(--fz-xs); font-weight: 500; }
+.tag-source-cooperation    { background: var(--c-success-bg); color: var(--c-success); }
+.tag-source-non_cooperation{ background: var(--c-primary-bg); color: var(--c-primary); }
+.tag-source-sports         { background: var(--c-warn-bg);    color: var(--c-warn); }
+.tag-source { padding: 2px 10px; border-radius: var(--r-sm); font-size: var(--fz-xs); font-weight: 600; white-space: nowrap; }
+
+.summary-line { color: var(--c-muted); font-size: var(--fz-sm); margin-bottom: 12px; }
+.no-data { padding: 48px; text-align: center; color: var(--c-muted); font-size: var(--fz-md); }
+
+::-webkit-scrollbar { height: 8px; width: 8px; }
+::-webkit-scrollbar-track { background: var(--c-bg); }
+::-webkit-scrollbar-thumb { background: var(--c-line); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-disabled); }
+</style>
+</head>
+<body data-watermark="Campaign Admin · {{NOW}}">
+
+<div class="topbar">
+  <div class="brand">热门活动场次监控</div>
+  <div class="spacer"></div>
+  <div class="topbar-actions">
+    <button class="lang-btn active" data-lang="zh">中文</button>
+    <button class="lang-btn" data-lang="en">English</button>
+    <div class="avatar">TR</div>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="side" style="display:none">
+    <div class="nav-item active" title="活动监控">★</div>
+    <div class="nav-item" title="数据分析">◈</div>
+    <div class="nav-item" title="筛选配置">⊞</div>
+    <div class="nav-item" title="设置">⚙</div>
+  </aside>
+
+  <div class="main">
+
+<header class="top-header">
+  <div class="header-row">
+    <div>
+      <div class="subtitle" data-i18n="subtitle">合作类 · 非合作类 · 赛事类 数据聚合视图</div>
+    </div>
+  </div>
+  <div class="meta-line">
+    <span data-i18n="source">数据源: 飞书表「【新】热门活动场次监控」</span> ·
+    <span data-i18n="updated">更新: <span id="update-date"></span></span>
+  </div>
+</header>
+
+<div class="filter-bar">
+  <div class="filter-row">
+    <span class="filter-label" data-i18n="lbl-source">类型</span>
+    <div id="f-source" class="chips-line"></div>
+    <input type="text" class="search-box" id="f-search" placeholder="搜索 名称 / 艺人 / 城市 / 国家 / 备注…" data-i18n-placeholder="ph-search">
+    <button class="reset-btn" id="f-reset" data-i18n="reset">重置筛选</button>
+  </div>
+  <div class="filter-row">
+    <span class="filter-label" data-i18n="lbl-grading">评级</span>
+    <div id="f-grading" class="chips-line"></div>
+  </div>
+  <div class="filter-row">
+    <span class="filter-label" data-i18n="lbl-category">品类</span>
+    <div id="f-category" class="chips-line"></div>
+  </div>
+  <div class="filter-row">
+    <span class="filter-label" data-i18n="lbl-country">国家</span>
+    <div id="f-country" class="chips-line"></div>
+  </div>
+  <div class="filter-row">
+    <span class="filter-label" data-i18n="lbl-year">年份</span>
+    <div id="f-year" class="chips-line"></div>
+  </div>
+  <div class="filter-row">
+    <span class="filter-label" data-i18n="lbl-month">月份</span>
+    <div id="f-month" class="chips-line"></div>
+    <label style="margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--c-muted);font-size:var(--fz-xs);">
+      <input type="checkbox" id="f-active"> <span data-i18n="only-active">仅显示未结束</span>
+    </label>
+  </div>
+</div>
+
+<div class="page-content">
+  <div class="section">
+    <h2 class="section-title" data-i18n="overview">总览</h2>
+    <div class="overview-grid">
+      <div class="card">
+        <div class="card-title" data-i18n="total">总场次</div>
+        <div class="big-num" id="ov-total">0</div>
+        <div class="big-num-label"><span id="ov-total-label" data-i18n="total-label">活动场次</span></div>
+        <div class="source-breakdown" id="ov-source"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" data-i18n="grade-dist">评级分布</div>
+        <div class="grade-list" id="ov-grading"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" data-i18n="top-country">Top 国家/地区</div>
+        <div class="top-list" id="ov-country"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="summary-line" id="filter-summary"></div>
+    <div id="month-sections"></div>
+  </div>
+</div>
+
+  </div><!-- /.main -->
+</div><!-- /.layout -->
+
+<script id="data" type="application/json">{"records":[{"source":"cooperation","name":"Kuala Lumpur | EXO PLANET #6 – EXhOrizon in KUALA LUMPUR","category":"演唱会 Concert","poiId":"154009698","startTime":"2026/06/19","endTime":"2026/06/19","saleTime":"2026/04/22 06:00","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"EXO","city":"Kuala Lumpur","country":"马来西亚","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Kuala Lumpur | EXO PLANET #6 – EXhOrizon in KUALA LUMPUR","category_en":"Concert","artist_en":"EXO","city_en":"Kuala Lumpur","country_en":"Malaysia","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"2026 IMAGINE DRAGONS LOOM WORLD TOUR演唱会","category":"演唱会 Concert","poiId":"154015748","startTime":"2026/03/12","endTime":"2026/03/28","saleTime":"2026/02/27 11:30","sale2Time":"","sale3Time":"","grading":"S+","remarks":"合作场次 2026/02/05 12:18 官宣\n上海站：154015748\n广州站：154015759\n成都站：154015764","artist":"IMAGINE DRAGONS","city":"上海、广州、成都","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"2026 IMAGINE DRAGONS LOOM WORLD TOUR Concert","category_en":"Concert","artist_en":"IMAGINE DRAGONS","city_en":"Shanghai, Guangzhou, Chengdu","country_en":"China","status_en":"","remarks_en":"Cooperation Show 2026/02/05 12:18 Officially Announced\nShanghai Stop: 154015748\nGuangzhou Stop: 154015759\nChengdu Stop: 154015764","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"GD权志龙见面会","category":"演唱会 Concert","poiId":"153999809","startTime":"2026/02/12","endTime":"2026/02/14","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"G-DRAGON","city":"横滨","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"GD G-Dragon Fanmeeting","category_en":"Concert","artist_en":"G-DRAGON","city_en":"Yokohama","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"中国台湾台北 · 永丰金控｜银行冠名赞助《G.E.M.邓紫棋I AM GLORIA世界巡回演唱会2.0－台北站》","category":"演唱会 Concert","poiId":"153994839","startTime":"2026/04/09","endTime":"2026/04/11","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"业务重点艺人 携程售票","artist":"邓紫棋","city":"台北","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Taipei, Taiwan, China · Sinopac Financial Holdings | Bank Title Sponsor«G.E.M. I AM GLORIA World Tour 2.0 - Taipei»","category_en":"Concert","artist_en":"G.E.M.","city_en":"Taipei","country_en":"China","status_en":"","remarks_en":"Business Key Artist Ctrip sells tickets","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"深圳 · 徐良“时间折叠”巡回演唱会-深圳站","category":"演唱会 Concert","poiId":"153994420","startTime":"2026/03/27","endTime":"2026/03/28","saleTime":"2026/01/31 06:00","sale2Time":"2026/02/27 16:00","sale3Time":"2026/03/24 07:00","grading":"S","remarks":"2026年3月27日场次三开时间:2026年3月24日15:00\n2026年3月28日场次三开时间:2026年3月24日15:30\n2026年3月29日场次三开时间:2026年3月24日16:00","artist":"徐良","city":"深圳","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shenzhen · Xu Liang“Time Folding” World Tour-Shenzhen Stop","category_en":"Concert","artist_en":"Xu Liang","city_en":"Shenzhen","country_en":"China","status_en":"","remarks_en":"2026 3/27 Show Third-Round Time:2026 3/2415:00\n2026 3/28 Show Third-Round Time:2026 3/2415:30\n2026 3/29 Show Third-Round Time:2026 3/2416:00","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Macao | 2025-26 TREASURE TOUR [PULSE ON] IN MACAO","category":"演唱会 Concert","poiId":"153243655","startTime":"2026/03/05","endTime":"2026/03/05","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"TREASURE ","city":"Macao","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Macao | 2025-26 TREASURE TOUR [PULSE ON] IN MACAO","category_en":"Concert","artist_en":"TREASURE ","city_en":"Macao","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Bangkok | SEVENTEEN WORLD TOUR [NEW_] IN BANGKOK","category":"演唱会 Concert","poiId":"153397599","startTime":"2026/03/13","endTime":"2026/03/13","saleTime":"2026/02/09 07:00","sale2Time":"","sale3Time":"","grading":"S+","remarks":"仅售C；Sold only on Ctrip","artist":"SEVENTEEN","city":"Bangkok","country":"泰国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Bangkok | SEVENTEEN WORLD TOUR [NEW_] IN BANGKOK","category_en":"Concert","artist_en":"SEVENTEEN","city_en":"Bangkok","country_en":"Thailand","status_en":"","remarks_en":"Sold only on Ctrip; Sold only on Ctrip","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Genting Highlands | GAI Zhou Yan’s GAI EVOLUTION 2026 WORLD TOUR – MALAYSIA","category":"演唱会 Concert","poiId":"154117776","startTime":"2026/05/09","endTime":"2026/05/09","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"GAI周延","city":"吉隆坡","country":"马来西亚","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Genting Highlands | GAI Zhou Yan’s GAI EVOLUTION 2026 WORLD TOUR – MALAYSIA","category_en":"Concert","artist_en":"GAI Zhou Yan","city_en":"Kuala Lumpur","country_en":"Malaysia","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"中国澳门 · Katch 音乐娱乐平台呈献：KEUNG TO “LAVA” LIVE TOUR 2026 - MACAU","category":"演唱会 Concert","poiId":"154198495","startTime":"2026/06/18","endTime":"2026/06/19","saleTime":"2026/04/17 03:00","sale2Time":"","sale3Time":"","grading":"A","remarks":"","artist":"姜涛","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Macao, China · Katch Music & Entertainment Platform Presents: KEUNG TO “LAVA” LIVE TOUR 2026 - MACAU","category_en":"Concert","artist_en":"Keung To","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"中国香港 · PayKool 呈獻：《Katch the Moment》– TheMomentApart","category":"演唱会 Concert","poiId":"154002692","startTime":"2026/03/06","endTime":"2026/03/07","saleTime":"2026/02/02 05:00","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"林宥嘉丨柳应廷，嘉宾：侧田丨吴林峰","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hong Kong, China · PayKool Presents: «Katch the Moment»– TheMomentApart","category_en":"Concert","artist_en":"Yoga Lin|柳应廷, 嘉宾: 侧田|吴林峰","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Bangkok | 赵露思Rosy Zhao Stay Romantic Concert-Bangkok","category":"演唱会 Concert","poiId":"154197096","startTime":"2026/05/08","endTime":"2026/05/08","saleTime":"2026/04/10 03:09","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"赵露思","city":"曼谷","country":"泰国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Bangkok | Rosy Zhao Stay Romantic Concert-Bangkok","category_en":"Concert","artist_en":"Rosy Zhao","city_en":"Bangkok","country_en":"Thailand","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Las Vegas | EVOLUTION 2026 WORLD TOUR","category":"演唱会 Concert","poiId":"154001093","startTime":"2026/04/10","endTime":"2026/04/10","saleTime":"2026/02/05 17:00","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"GAI周延","city":"Las Vegas ","country":"美国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Las Vegas | EVOLUTION 2026 WORLD TOUR","category_en":"Concert","artist_en":"GAI Zhou Yan","city_en":"Las Vegas ","country_en":"美国","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"2026年巴塞尔艺术展香港","category":"展览 Exhibition","poiId":"153438911","startTime":"2026/03/25","endTime":"2026/03/28","saleTime":"","sale2Time":"","sale3Time":"","grading":"","remarks":"","artist":"","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"2026 Art Basel Hong Kong","category_en":"Exhibition","artist_en":"","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"日本东京 · SEVENTEEN 2026 JAPAN FANMEETING 'YAKUSOKU'  ","category":"见面会 Fanmeeting","poiId":"154256697","startTime":"2026/05/12","endTime":"2026/05/13","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":" SEVENTEEN","city":"东京","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Tokyo, Japan · SEVENTEEN 2026 JAPAN FANMEETING 'YAKUSOKU' ","category_en":"Fanmeeting","artist_en":" SEVENTEEN","city_en":"Tokyo","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"阿联酋迪拜 · KRAZY SUPER CONCERT in DUBAI","category":"演唱会 Concert","poiId":"154009455","startTime":"2026/02/16","endTime":"2026/02/16","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"业务合作场次，初一迪拜，假日热门","artist":"#权志龙 #朴宰范  #金钟国 #郑叡仁 #郑睿隣 #蔡徐坤 ","city":"迪拜","country":"阿联酋","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Dubai, UAE · KRAZY SUPER CONCERT in DUBAI","category_en":"Concert","artist_en":"#G-Dragon #朴宰范 #金钟国 #郑叡仁 #郑睿隣 #Cai Xukun ","city_en":"Dubai","country_en":"UAE","status_en":"","remarks_en":"Business Cooperation Show, Lunar New Year DayDubai, Holiday Hot","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"成都 · 徐良“时间折叠”巡回演唱会-成都站","category":"演唱会 Concert","poiId":"154195918","startTime":"2026/04/30","endTime":"2026/05/04","saleTime":"2026/04/09 07:00","sale2Time":"2026/04/20 07:00","sale3Time":"2026/04/25 07:00","grading":"S","remarks":"五一假期连开；加场5.4-5.5 ","artist":"徐良","city":"成都","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Chengdu · Xu Liang“Time Folding” World Tour-Chengdu Stop","category_en":"Concert","artist_en":"Xu Liang","city_en":"Chengdu","country_en":"China","status_en":"","remarks_en":"May Day Holiday Consecutive ; Added Show5.4-5.5 ","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"The Weeknd: After Hours Til Dawn Tour","category":"演唱会 Concert","poiId":"155028810、155028810","startTime":"2026/10/01","endTime":"2026/10/30","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"The Weeknd's Hong Kong and Singapore concerts: Hong Kong - October 30-31, Singapore - October 2-3.","artist":"The Weeknd","city":"HK、SG","country":"","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"The Weeknd: After Hours Til Dawn Tour","category_en":"Concert","artist_en":"The Weeknd","city_en":"HK、SG","country_en":"","status_en":"","remarks_en":"The Weeknd's Hong Kong and Singapore concerts: Hong Kong - October 30-31, Singapore - October 2-3.","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Sydney Olympic Park | Jay Chou: Carnival Ⅱ World Tour","category":"演唱会 Concert","poiId":"154185339","startTime":"2026/11/20","endTime":"2026/11/20","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"周杰伦","city":"Sydney Olympic Park","country":"澳大利亚","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Sydney Olympic Park | Jay Chou: Carnival Ⅱ World Tour","category_en":"Concert","artist_en":"Jay Chou","city_en":"Sydney Olympic Park","country_en":"Australia","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Saitama | SUPER JUNIOR 20th Anniversary TOUR ＜SUPER SHOW 10＞ in JAPAN","category":"演唱会 Concert","poiId":"153352591","startTime":"2026/03/06","endTime":"2026/03/08","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"SUPER JUNIOR","city":"Saitama ","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Saitama | SUPER JUNIOR 20th Anniversary TOUR \u003cSUPER SHOW 10> in JAPAN","category_en":"Concert","artist_en":"SUPER JUNIOR","city_en":"Saitama ","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"武汉 · Evolution Nic live谢霆锋进化演唱会-武汉站","category":"演唱会 Concert","poiId":"154010923","startTime":"2026/04/10","endTime":"2026/04/11","saleTime":"","sale2Time":"2026/03/25 07:00","sale3Time":"","grading":"S+","remarks":"","artist":"谢霆锋","city":"武汉","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Wuhan · Evolution Nic Live (Nicholas Tse Evolution Concert)-Wuhan Stop","category_en":"Concert","artist_en":"Nicholas Tse","city_en":"Wuhan","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"苏州 · 周深2026「深深的」巡回演唱会","category":"演唱会 Concert","poiId":"154119201","startTime":"2026/05/15","endTime":"2026/05/16","saleTime":"2026/04/13 12:00","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"周深","city":"苏州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Suzhou · Zhou Shen2026\" So Deep\" World Tour","category_en":"Concert","artist_en":"Zhou Shen","city_en":"Suzhou","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"南京 · EvolutionNicLive谢霆锋进化演唱会-南京站","category":"演唱会 Concert","poiId":"154164560","startTime":"2026/06/12","endTime":"2026/06/12","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"谢霆锋","city":"南京","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Nanjing · Evolution Nic Live (Nicholas Tse Evolution Concert)-Nanjing Stop","category_en":"Concert","artist_en":"Nicholas Tse","city_en":"Nanjing","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"上海 · 范玮琪·我们之间的事2026巡回演唱会-上海站（安可场）","category":"演唱会 Concert","poiId":"154103772","startTime":"2026/06/05","endTime":"2026/06/05","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"范玮琪","city":"上海","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shanghai · Christine Fan · Things Between Us2026 World Tour-Shanghai Stop (Encore Show)","category_en":"Concert","artist_en":"Christine Fan","city_en":"Shanghai","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"BANGKOK | 2025-26 TREASURE TOUR [PULSE ON] IN BANGKOK","category":"演唱会 Concert","poiId":"153243650","startTime":"2026/05/15","endTime":"2026/05/15","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"TREASURE ","city":"Bangkok","country":"泰国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"BANGKOK | 2025-26 TREASURE TOUR [PULSE ON] IN BANGKOK","category_en":"Concert","artist_en":"TREASURE ","city_en":"Bangkok","country_en":"Thailand","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"上海 · 陈楚生“荒芜之境”2026巡回演唱会一上海站","category":"演唱会 Concert","poiId":"154078046","startTime":"2026/04/10","endTime":"2026/04/11","saleTime":"2026/03/04 05:00","sale2Time":"","sale3Time":"","grading":"S","remarks":"巡演首次升级至万人体育场规格","artist":"陈楚生","city":"上海","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shanghai · Chen Chusheng“Wasteland”2026 World Tour—Shanghai Stop","category_en":"Concert","artist_en":"Chen Chusheng","city_en":"Shanghai","country_en":"China","status_en":"","remarks_en":"Tour First Upgraded to 10K Stadium Scale","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Singapore | G.E.M. I AM GLORIA World Tour 2.0 — Singapore","category":"演唱会 Concert","poiId":"154106690","startTime":"2026/05/22","endTime":"2026/05/22","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"邓紫棋","city":"Singapore ","country":"新加坡","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Singapore | G.E.M. I AM GLORIA World Tour 2.0 — Singapore","category_en":"Concert","artist_en":"G.E.M.","city_en":"Singapore ","country_en":"Singapore","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Sydney | Jay Chou Carnival Ⅱ World Tour","category":"演唱会 Concert","poiId":"154239711","startTime":"2026/11/20","endTime":"2026/11/20","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"Jay Chou","city":"Sydney","country":"澳大利亚","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Sydney | Jay Chou Carnival Ⅱ World Tour","category_en":"Concert","artist_en":"Jay Chou","city_en":"Sydney","country_en":"Australia","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Bangkok | 2026 G-Dragon 'FAM' Meeting [FAM+ILY : FAMILY : FAM I LOVE YOU] in Bangkok","category":"见面会 Fanmeeting","poiId":"153990722","startTime":"2026/02/20","endTime":"2026/02/21","saleTime":"2026/02/11 04:22","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"权志龙","city":"Bangkok","country":"泰国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Bangkok | 2026 G-Dragon 'FAM' Meeting [FAM+ILY : FAMILY : FAM I LOVE YOU] in Bangkok","category_en":"Fanmeeting","artist_en":"G-Dragon","city_en":"Bangkok","country_en":"Thailand","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"2026喜力®星电音独家呈现VAC电音节（春季）","category":"音乐节 Music Festival","poiId":"154106837","startTime":"2026/04/17","endTime":"2026/04/18","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"知名电音节","artist":"","city":"珠海","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"2026 Heineken®Star EDM Exclusively PresentsVAC EDM Festival (Spring)","category_en":"Music Festival","artist_en":"","city_en":"Zhuhai","country_en":"China","status_en":"","remarks_en":"Famous EDM Festival","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"南京 · 2026Ella陈嘉桦It's Me艾拉主意巡回演唱会南京站","category":"演唱会 Concert","poiId":"154080396","startTime":"2026/04/17","endTime":"2026/04/18","saleTime":"2026/03/25 07:00","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"Ella陈嘉桦","city":"南京","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Nanjing · 2026 Ella ChenIt's Me Ella's Idea World Tour Nanjing Stop","category_en":"Concert","artist_en":"Ella Chen","city_en":"Nanjing","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"广州 · 韩庚2026「世界的角落」巡回演唱会-广州站","category":"演唱会 Concert","poiId":"154008234","startTime":"2026/05/22","endTime":"2026/05/22","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"26年巡演新主题，首站开启","artist":"韩庚","city":"广州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Guangzhou · Han Geng2026\" Corner of the World\" World Tour-Guangzhou Stop","category_en":"Concert","artist_en":"Han Geng","city_en":"Guangzhou","country_en":"China","status_en":"","remarks_en":"26 Tour New Theme, First Stop Begins","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Kuala Lumpur | G.E.M. I AM GLORIA World Tour 2.0","category":"演唱会 Concert","poiId":"154129722","startTime":"2026/06/05","endTime":"2026/06/05","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"邓紫棋 G.E.M","city":"Kuala Lumpur","country":"马来西亚","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Kuala Lumpur | G.E.M. I AM GLORIA World Tour 2.0","category_en":"Concert","artist_en":"G.E.M.","city_en":"Kuala Lumpur","country_en":"Malaysia","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"北京 · 2026郁可唯“我怪”巡回演唱会-北京站","category":"演唱会 Concert","poiId":"154103673","startTime":"2026/06/05","endTime":"2026/06/05","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"郁可唯","city":"北京","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Beijing · 2026 Yisa Yu“I'm Strange” World Tour-Beijing Stop","category_en":"Concert","artist_en":"Yisa Yu","city_en":"Beijing","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"佛山 · “万物安生时”李健巡回演唱会-佛山站","category":"演唱会 Concert","poiId":"154082932","startTime":"2026/06/26","endTime":"2026/06/26","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"李健","city":"佛山","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Foshan · “When All Things Live in Peace” Li JianWorld Tour-Foshan Stop","category_en":"Concert","artist_en":"Li Jian","city_en":"Foshan","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"MAYDAY #5525 LIVE TOUR 五月天 [ 回到那一天 ] 25週年巡迴演唱會 ｜馬來西亞站","category":"演唱会 Concert","poiId":"153357630","startTime":"2026/01/30","endTime":"2026/01/30","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"五月天","city":"马来西亚","country":"吉隆坡","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"MAYDAY #5525 LIVE TOUR Mayday [ Back to That Day ] 25th AnniversaryWorld Tour | Malaysia Stop","category_en":"Concert","artist_en":"Mayday","city_en":"Malaysia","country_en":"Kuala Lumpur","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"中国香港 · 2026 LEE YOUNGJI WORLD TOUR \u003c2.0>","category":"演唱会 Concert","poiId":"154241249","startTime":"2026/07/31","endTime":"2026/07/31","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"李泳知","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hong Kong, China · 2026 LEE YOUNGJI WORLD TOUR \u003c2.0>","category_en":"Concert","artist_en":"Lee Youngji","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Bangkok | ITZY 3RD WORLD TOUR \u003cTUNNEL VISION> in BANGKOK","category":"演唱会 Concert","poiId":"153978236","startTime":"2026/07/03","endTime":"2026/07/03","saleTime":"","sale2Time":"","sale3Time":"","grading":"A","remarks":"","artist":"ITZY","city":"Pak Kret，Bangkok","country":"泰国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Bangkok | ITZY 3RD WORLD TOUR \u003cTUNNEL VISION> in BANGKOK","category_en":"Concert","artist_en":"ITZY","city_en":"Pak Kret, Bangkok","country_en":"Thailand","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"上海 · 黄丽玲A-Lin 歌 迹 Journey世界巡回演唱会","category":"演唱会 Concert","poiId":"153975332","startTime":"2026/03/19","endTime":"2026/03/22","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"上海站二度加场","artist":"黄丽玲Alin","city":"上海","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shanghai · A-Lin Song Trace Journey World Tour","category_en":"Concert","artist_en":"A-Lin","city_en":"Shanghai","country_en":"China","status_en":"","remarks_en":"Shanghai Stop Second Added Show","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"武汉 · ONEREPUBLIC “From Asia, With Love” 2026武汉站","category":"演唱会 Concert","poiId":"153978217","startTime":"2026/04/18","endTime":"2026/04/18","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"OneRepublic","city":"武汉","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Wuhan · ONEREPUBLIC “From Asia, With Love” 2026 Wuhan Stop","category_en":"Concert","artist_en":"OneRepublic","city_en":"Wuhan","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Yokohama | 2026 i-dle WORLD TOUR [Syncopation] IN YOKOHAMA","category":"演唱会 Concert","poiId":"153453874","startTime":"2026/06/19","endTime":"2026/06/20","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"i-dle","city":"Yokohama","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Yokohama | 2026 i-dle WORLD TOUR [Syncopation] IN YOKOHAMA","category_en":"Concert","artist_en":"i-dle","city_en":"Yokohama","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"成都 · Evolution Nic live谢霆锋进化演唱会-成都站","category":"演唱会 Concert","poiId":"154107992","startTime":"2026/05/01","endTime":"2026/05/02","saleTime":"","sale2Time":"2026/04/23 06:00","sale3Time":"","grading":"S+","remarks":"","artist":"谢霆锋","city":"成都","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Chengdu · Evolution Nic Live (Nicholas Tse Evolution Concert)-Chengdu Stop","category_en":"Concert","artist_en":"Nicholas Tse","city_en":"Chengdu","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Hong Kong | IVE WORLD TOUR \u003cSHOW WHAT I AM> IN HONG KONG","category":"演唱会 Concert","poiId":"154189352","startTime":"2026/09/03","endTime":"2026/09/04","saleTime":"","sale2Time":"","sale3Time":"","grading":"A","remarks":"","artist":"IVE","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hong Kong | IVE WORLD TOUR \u003cSHOW WHAT I AM> IN HONG KONG","category_en":"Concert","artist_en":"IVE","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"泰国曼谷 · 2026 G-Dragon 'FAM' Meeting [FAM+ILY : FAMILY : FAM I LOVE YOU] in Bangkok","category":"演唱会 Concert","poiId":"153999817","startTime":"2026/02/20","endTime":"2026/02/21","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"G-DRAGON","city":"曼谷","country":"泰国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Bangkok, Thailand · 2026 G-Dragon 'FAM' Meeting [FAM+ILY : FAMILY : FAM I LOVE YOU] in Bangkok","category_en":"Concert","artist_en":"G-DRAGON","city_en":"Bangkok","country_en":"Thailand","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"广州 · 单依纯「纯妹妹2.0」2026巡回演唱会-广州站","category":"演唱会 Concert","poiId":"155071424","startTime":"2026/06/26","endTime":"2026/06/27","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"单依纯","city":"广州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Guangzhou · Shan Yichun[Pure Sister 2.0]2026 World Tour-Guangzhou Stop","category_en":"Concert","artist_en":"Shan Yichun","city_en":"Guangzhou","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"苏州 · ONEREPUBLIC “From Asia, With Love” 2026苏州站","category":"演唱会 Concert","poiId":"154106625","startTime":"2026/04/25","endTime":"2026/04/25","saleTime":"2026/03/17 09:00","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"ONEREPUBLIC ","city":"苏州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Suzhou · ONEREPUBLIC “From Asia, With Love” 2026 Suzhou Stop","category_en":"Concert","artist_en":"ONEREPUBLIC ","city_en":"Suzhou","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"ComplexCon Hong Kong 2026","category":"展览 Exhibition","poiId":"153408713","startTime":"2026/03/20","endTime":"2026/03/21","saleTime":"2026/02/03 03:00","sale2Time":"","sale3Time":"","grading":"S","remarks":"压轴主秀阵容：\n* 3月21日：Yeat（亚洲首演）\n* 3月22日：JENNIE（个人香港首演）","artist":"JENNIE \n朴宰范 \nWING \nAmy Lo \nCrush \nYeat \nHiss \nLNGSHOT \nR.Tee \n揽佬SKAI ISYOURGOD \nALLDAY PROJECT","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"ComplexCon Hong Kong 2026","category_en":"Exhibition","artist_en":"JENNIE \n朴宰范 \nWING \nAmy Lo \nCrush \nYeat \nHiss \nLNGSHOT \nR.Tee \n揽佬SKAI ISYOURGOD \nALLDAY PROJECT","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"Headliner Lineup: \n* 3/21: Yeat (Asia Debut)\n* 3/22: JENNIE (Personal Hong Kong Debut)","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Hong Kong | ITZY 3RD WORLD TOUR \u003cTUNNEL VISION> in HONG KONG","category":"演唱会 Concert","poiId":"153978214","startTime":"2026/06/19","endTime":"2026/06/19","saleTime":"2026/03/24 07:00","sale2Time":"","sale3Time":"","grading":"A","remarks":"3.24开票，流量较高","artist":"ITZY","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hong Kong | ITZY 3RD WORLD TOUR \u003cTUNNEL VISION> in HONG KONG","category_en":"Concert","artist_en":"ITZY","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"3.24 Tickets On-Sale, High Traffic","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"中国香港 · NMIXX 1ST WORLD TOUR \u003cEPISODE 1: ZERO FRONTIER> IN HONG KONG","category":"演唱会 Concert","poiId":"154197206","startTime":"2026/07/24","endTime":"2026/07/24","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"NMIXX","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hong Kong, China · NMIXX 1ST WORLD TOUR \u003cEPISODE 1: ZERO FRONTIER> IN HONG KONG","category_en":"Concert","artist_en":"NMIXX","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"郑州 · 单依纯「纯妹妹2.0」2026巡回演唱会-郑州站","category":"演唱会 Concert","poiId":"154121530","startTime":"2026/04/24","endTime":"2026/04/25","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"单依纯","city":"郑州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Zhengzhou · Shan Yichun[Pure Sister 2.0]2026 World Tour-Zhengzhou Stop","category_en":"Concert","artist_en":"Shan Yichun","city_en":"Zhengzhou","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Singapore | Rainie Yang《The Elephant We See》World Tour in Singapore","category":"演唱会 Concert","poiId":"154076684","startTime":"2026/04/10","endTime":"2026/04/10","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"杨丞琳","city":"Singapore ","country":"新加坡","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Singapore | Rainie Yang«The Elephant We See» World Tour in Singapore","category_en":"Concert","artist_en":"Rainie Yang","city_en":"Singapore ","country_en":"Singapore","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Seoul | 2026-27 BABYMONSTER WORLD TOUR [춤 (CHOOM)]","category":"演唱会 Concert","poiId":"154178314","startTime":"2026/06/25","endTime":"2026/06/27","saleTime":"2026/04/09 12:00","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"BABYMONSTER","city":"Seoul ","country":"韩国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Seoul | 2026-27 BABYMONSTER WORLD TOUR [춤 (CHOOM)]","category_en":"Concert","artist_en":"BABYMONSTER","city_en":"Seoul ","country_en":"韩国","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Hong Kong | ONE OK ROCK DETOX Asia Tour 2026 in Hong Kong","category":"演唱会 Concert","poiId":"153156096","startTime":"2026/05/01","endTime":"2026/05/02","saleTime":"2026/03/11 07:00","sale2Time":"","sale3Time":"","grading":"S+","remarks":"Canceled","artist":"ONE OK ROCK","city":"Hong Kong","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hong Kong | ONE OK ROCK DETOX Asia Tour 2026 in Hong Kong","category_en":"Concert","artist_en":"ONE OK ROCK","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"Canceled","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"深圳 · EvolutionNicLive谢霆锋进化演唱会-深圳站","category":"演唱会 Concert","poiId":"153502970","startTime":"2026/03/20","endTime":"2026/03/21","saleTime":"2026/01/28 01:30","sale2Time":"2026/03/03 05:30","sale3Time":"","grading":"S+","remarks":"加场开售时间3.3 13:30","artist":"谢霆锋","city":"深圳","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shenzhen · Evolution Nic Live (Nicholas Tse Evolution Concert)-Shenzhen Stop","category_en":"Concert","artist_en":"Nicholas Tse","city_en":"Shenzhen","country_en":"China","status_en":"","remarks_en":"Added Show On-Sale Time3.3 13:30","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"日本大阪 · SEVENTEEN 2026 JAPAN FANMEETING 'YAKUSOKU' ","category":"见面会 Fanmeeting","poiId":"154256724","startTime":"2026/05/22","endTime":"2026/05/23","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":" SEVENTEEN","city":"大阪","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Osaka, Japan · SEVENTEEN 2026 JAPAN FANMEETING 'YAKUSOKU' ","category_en":"Fanmeeting","artist_en":" SEVENTEEN","city_en":"Osaka","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Singapore | 2025-26 TREASURE TOUR [PULSE ON] IN SINGAPORE","category":"演唱会 Concert","poiId":"153333814","startTime":"2026/05/02","endTime":"2026/05/02","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"TREASURE ","city":"Singapore ","country":"新加坡","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Singapore | 2025-26 TREASURE TOUR [PULSE ON] IN SINGAPORE","category_en":"Concert","artist_en":"TREASURE ","city_en":"Singapore ","country_en":"Singapore","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"中国香港 · SEVENTEEN WORLD TOUR [NEW_] IN HONG KONG","category":"演唱会 Concert","poiId":"153502991","startTime":"2026/02/27","endTime":"2026/02/28","saleTime":"2026/01/21 01:00","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"SEVENTEEN","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hong Kong, China · SEVENTEEN WORLD TOUR [NEW_] IN HONG KONG","category_en":"Concert","artist_en":"SEVENTEEN","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"合肥 · BY2「撇清关系」17周年巡回演唱会2.0合肥站","category":"演唱会 Concert","poiId":"154080348","startTime":"2026/03/27","endTime":"2026/03/27","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"BY2","city":"合肥","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hefei · BY2[Clear It Up]17th AnniversaryWorld Tour2.0 Hefei Stop","category_en":"Concert","artist_en":"BY2","city_en":"Hefei","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"广州 · 陶喆 Soul Power II PLUS 2026世界巡回演唱会-广州站","category":"演唱会 Concert","poiId":"154078758","startTime":"2026/04/23","endTime":"2026/04/25","saleTime":"2026/03/17 12:00","sale2Time":"","sale3Time":"","grading":"S+","remarks":"4月 24 日场次，3月17日20:00 预售4月 25 日场次，3月17日20:30 预售4月 26 日场次，3月17 日 21:00 预售","artist":"陶喆","city":"广州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Guangzhou · David Tao Soul Power II PLUS 2026 World Tour-Guangzhou Stop","category_en":"Concert","artist_en":"David Tao","city_en":"Guangzhou","country_en":"China","status_en":"","remarks_en":"4/ 24 Show, 3/1720:00 Pre-sale4/ 25 Show, 3/1720:30 Pre-sale4/ 26 Show, 3/17 21:00 Pre-sale","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"香港 Comic Con 2026","category":"展览 Exhibition","poiId":"154011114","startTime":"2026/05/28","endTime":"2026/05/30","saleTime":"","sale2Time":"","sale3Time":"","grading":"A","remarks":"业务售卖热门演出活动","artist":"","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hong Kong Comic Con 2026","category_en":"Exhibition","artist_en":"","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"Business-Sold Popular Show","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Tokyo | XG WORLD TOUR: THE CORE","category":"演唱会 Concert","poiId":"153510235","startTime":"2026/04/09","endTime":"2026/04/11","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"XG","city":"Tokyo","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Tokyo | XG WORLD TOUR: THE CORE","category_en":"Concert","artist_en":"XG","city_en":"Tokyo","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"广州 · 周深2026「深深的」巡回演唱会 广州站","category":"演唱会 Concert","poiId":"154119210","startTime":"2026/04/17","endTime":"2026/04/18","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"周深","city":"广州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Guangzhou · Zhou Shen2026\" So Deep\" World Tour Guangzhou Stop","category_en":"Concert","artist_en":"Zhou Shen","city_en":"Guangzhou","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"武汉 · 陶喆 Soul Power II PLUS 2026世界巡回演唱会-武汉站","category":"演唱会 Concert","poiId":"153977955","startTime":"2026/03/26","endTime":"2026/03/28","saleTime":"","sale2Time":"2026/03/13 12:00","sale3Time":"2026/03/25 12:00","grading":"S+","remarks":"","artist":"陶喆","city":"武汉","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Wuhan · David Tao Soul Power II PLUS 2026 World Tour-Wuhan Stop","category_en":"Concert","artist_en":"David Tao","city_en":"Wuhan","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"日本千叶 · CxM [DOUBLE UP] LIVE PARTY in JAPAN","category":"演唱会 Concert","poiId":"153445385","startTime":"2026/02/04","endTime":"2026/02/05","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"珉奎","city":"千叶 ","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Chiba, Japan · CxM [DOUBLE UP] LIVE PARTY in JAPAN","category_en":"Concert","artist_en":"Mingyu","city_en":"Chiba ","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Post Malone Presents The BIG Stadium World Tour","category":"演唱会 Concert","poiId":"154193230","startTime":"2026/09/15","endTime":"2026/10/05","saleTime":"2026/04/07 02:00","sale2Time":"","sale3Time":"","grading":"S","remarks":"Post Malone's Asia Tour, HK/SG/Bangkok tickets on Ctrip&Trip.com ","artist":"Post Malone","city":"HK、Kaohsiung、Bangkok、SG、Kuala Lumpur、Manila、Seoul、Tokyo","country":"Asia","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Post Malone Presents The BIG Stadium World Tour","category_en":"Concert","artist_en":"Post Malone","city_en":"HK、Kaohsiung、Bangkok、SG、Kuala Lumpur、Manila、Seoul、Tokyo","country_en":"Asia","status_en":"","remarks_en":"Post Malone's Asia Tour, HK/SG/Bangkok tickets on Ctrip&Trip.com ","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"深圳 · 单依纯「纯妹妹2.0」2026巡回演唱会-深圳站","category":"演唱会 Concert","poiId":"154080306","startTime":"2026/03/27","endTime":"2026/03/28","saleTime":"2026/03/03 04:23","sale2Time":"","sale3Time":"2026/03/25 10:20","grading":"S+","remarks":"","artist":"单依纯","city":"深圳","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shenzhen · Shan Yichun[Pure Sister 2.0]2026 World Tour-Shenzhen Stop","category_en":"Concert","artist_en":"Shan Yichun","city_en":"Shenzhen","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"日本大阪 · TOMORROW X TOGETHER WORLD TOUR ＜ACT : TOMORROW＞ IN JAPAN","category":"演唱会 Concert","poiId":"153429996","startTime":"2026/02/06","endTime":"2026/02/07","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"TOMORROW X TOGETHER","city":"大阪","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Osaka, Japan · TOMORROW X TOGETHER WORLD TOUR \u003cACT : TOMORROW> IN JAPAN","category_en":"Concert","artist_en":"TOMORROW X TOGETHER","city_en":"Osaka","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"北京 · 畅轻·2026北京超级草莓音乐节","category":"音乐节 Music Festival","poiId":"154030054","startTime":"2026/05/01","endTime":"2026/05/03","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"首批阵容有S+艺人，草莓音乐节今年首站，五一假期","artist":"DOUDOU/队长Youngcaptain房东的猫/h3R3刘清云/毛不易/梅卡德尔单依纯Shanyichun万妮达Vinidaweng/郑润泽","city":"北京","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Beijing · Changqing · 2026 Beijing Super Strawberry Music Festival","category_en":"Music Festival","artist_en":"DOUDOU/队长Youngcaptain房东的猫/h3R3刘清云/毛不易/梅卡德尔Shan YichunShanyichun万妮达Vinidaweng/郑润泽","city_en":"Beijing","country_en":"China","status_en":"","remarks_en":"First Lineup Has S+ Artists, Strawberry Music Festival This Year's First Stop, May Day Holiday","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"上海 · “万物安生时”李健巡回演唱会-上海站","category":"演唱会 Concert","poiId":"154082928","startTime":"2026/05/28","endTime":"2026/05/30","saleTime":"2026/03/13 02:18","sale2Time":"","sale3Time":"","grading":"S","remarks":"5.29场次预售时间:2026年3��13日10:18\n5.31场次预售时间:2026年3月13日15:18","artist":"李健","city":"上海","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shanghai · “When All Things Live in Peace” Li JianWorld Tour-Shanghai Stop","category_en":"Concert","artist_en":"Li Jian","city_en":"Shanghai","country_en":"China","status_en":"","remarks_en":"5.29 Show Pre-sale Time:2026 3��1310:18\n5.31 Show Pre-sale Time:2026 3/1315:18","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"马来西亚吉隆坡 · K-SPARK IN MALAYSIA 2026","category":"演唱会 Concert","poiId":"153999607","startTime":"2026/01/30","endTime":"2026/01/30","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"DOLLA \nG-DRAGON \nDPR IAN \nHWASA \n3P \nITZY","city":"吉隆坡","country":"马来西亚","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Kuala Lumpur, Malaysia · K-SPARK IN MALAYSIA 2026","category_en":"Concert","artist_en":"DOLLA \nG-DRAGON \nDPR IAN \nHWASA \n3P \nITZY","city_en":"Kuala Lumpur","country_en":"Malaysia","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Summer Sonic Tokyo 2026","category":"音乐节 Music Festival","poiId":"143363995","startTime":"2026/08/13","endTime":"2026/08/15","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"JENNIE ✖\nJamiroquai ✖\nkeshi ✖\nPiXXiE ✖\nSuede ✖\nAdo ✖\nサカナクション ✖\nAiNA THE END ✖\nPentatonix ✖\nLe sserafim ✖\nL'Arc〜en〜Ciel ✖\n羊文学 ✖\nKasabian ✖\nThe Strokes ✖\nAlex Warren ✖\nキタニタツヤ ✖\nFKA twigs ✖\nBABYMETAL ","city":"Tokyo","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Summer Sonic Tokyo 2026","category_en":"Music Festival","artist_en":"JENNIE ✖\nJamiroquai ✖\nkeshi ✖\nPiXXiE ✖\nSuede ✖\nAdo ✖\nサカナクション ✖\nAiNA THE END ✖\nPentatonix ✖\nLe sserafim ✖\nL'Arc〜en〜Ciel ✖\n羊文学 ✖\nKasabian ✖\nThe Strokes ✖\nAlex Warren ✖\nキタニタツヤ ✖\nFKA twigs ✖\nBABYMETAL ","city_en":"Tokyo","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"上海 · 陶喆 Soul Power II PLUS 2026世界巡回演唱会-上海站","category":"演唱会 Concert","poiId":"154078778","startTime":"2026/05/21","endTime":"2026/05/23","saleTime":"2026/04/13 12:00","sale2Time":"2026/05/15 04:00","sale3Time":"","grading":"S+","remarks":"","artist":"陶喆","city":"上海","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shanghai · David Tao Soul Power II PLUS 2026 World Tour-Shanghai Stop","category_en":"Concert","artist_en":"David Tao","city_en":"Shanghai","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Kuala Lumpur | 2026 MONSTA X WORLD TOUR [THE X : NEXUS]","category":"演唱会 Concert","poiId":"153987239","startTime":"2026/03/27","endTime":"2026/03/27","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"Monsta X","city":"Kuala Lumpur","country":"马来西亚","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Kuala Lumpur | 2026 MONSTA X WORLD TOUR [THE X : NEXUS]","category_en":"Concert","artist_en":"Monsta X","city_en":"Kuala Lumpur","country_en":"Malaysia","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Hong Kong | 2025-26 TREASURE TOUR [PULSE ON] IN HONG KONG","category":"演唱会 Concert","poiId":"153353932","startTime":"2026/05/08","endTime":"2026/05/08","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"TREASURE","city":"Hong Kong","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hong Kong | 2025-26 TREASURE TOUR [PULSE ON] IN HONG KONG","category_en":"Concert","artist_en":"TREASURE","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"玉溪 · 2026华晨宇火星演唱会-乐园2.0","category":"演唱会 Concert","poiId":"154186822","startTime":"2026/04/30","endTime":"2026/05/04","saleTime":"2026/04/07 11:27","sale2Time":"2026/04/18 11:27","sale3Time":"","grading":"S+","remarks":"【演出延期】","artist":"华晨宇","city":"玉溪","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Yuxi · 2026 Hua ChenyuMars Concert-Paradise 2.0","category_en":"Concert","artist_en":"Hua Chenyu","city_en":"Yuxi","country_en":"China","status_en":"","remarks_en":"[Show Postponed]","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Singapore | SEVENTEEN WORLD TOUR [NEW_] IN SINGAPORE","category":"演唱会 Concert","poiId":"153331186","startTime":"2026/03/06","endTime":"2026/03/06","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"SEVENTEEN","city":"Singapore ","country":"新加坡","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Singapore | SEVENTEEN WORLD TOUR [NEW_] IN SINGAPORE","category_en":"Concert","artist_en":"SEVENTEEN","city_en":"Singapore ","country_en":"Singapore","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"英国哈林盖 · BTS WORLD TOUR ARIRANG in London","category":"演唱会 Concert","poiId":"153989180","startTime":"2026/07/05","endTime":"2026/07/06","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"BTS","city":"伦敦","country":"英国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Haringey, UK · BTS WORLD TOUR ARIRANG in London","category_en":"Concert","artist_en":"BTS","city_en":"London","country_en":"UK","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"中国香港 · PONDPHUWIN RENDEZVOUS FANCON IN HONG KONG","category":"演唱会 Concert","poiId":"154218923","startTime":"2026/06/12","endTime":"2026/06/12","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"流量暴增","artist":"PondPhuwin","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hong Kong, China · PONDPHUWIN RENDEZVOUS FANCON IN HONG KONG","category_en":"Concert","artist_en":"PondPhuwin","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"Traffic Surge","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Seoul | WATERBOMB SEOUL 2026","category":"音乐节 Music Festival","poiId":"153503142","startTime":"2026/07/23","endTime":"2026/07/25","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"朴宰范 ✖\nSUNMI 宣美 ✖\nLoco ✖\nSHOWNU X HYUNGWON ✖\nCHANGMO ✖\nKISS OF LIFE ✖\nRIIZE ✖\nBIBI (비비) ✖\nGRAY ✖\n李泳知 ","city":"Seoul","country":"韩国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Seoul | WATERBOMB SEOUL 2026","category_en":"Music Festival","artist_en":"朴宰范 ✖\nSUNMI 宣美 ✖\nLoco ✖\nSHOWNU X HYUNGWON ✖\nCHANGMO ✖\nKISS OF LIFE ✖\nRIIZE ✖\nBIBI (비비) ✖\nGRAY ✖\nLee Youngji ","city_en":"Seoul","country_en":"韩国","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Singapore | GAI EVOLUTION 2026 WORLD TOUR","category":"演唱会 Concert","poiId":"153994418","startTime":"2026/03/06","endTime":"2026/03/06","saleTime":"2026/01/26 02:00","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"GAI周延","city":"Singapore ","country":"新加坡","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Singapore | GAI EVOLUTION 2026 WORLD TOUR","category_en":"Concert","artist_en":"GAI Zhou Yan","city_en":"Singapore ","country_en":"Singapore","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"武汉 · 单依纯「纯妹妹2.0」2026巡回演唱会-武汉站","category":"演唱会 Concert","poiId":"154123514","startTime":"2026/04/09","endTime":"2026/04/11","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"4月10日场预售时间：3月16日12:23\n4月11日场预售时间：3月16日12:53\n4月12日场预售时间：3月16日13:23","artist":"单依纯","city":"武汉","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Wuhan · Shan Yichun[Pure Sister 2.0]2026 World Tour-Wuhan Stop","category_en":"Concert","artist_en":"Shan Yichun","city_en":"Wuhan","country_en":"China","status_en":"","remarks_en":"4/10 Show Pre-sale Time: 3/1612:23\n4/11 Show Pre-sale Time: 3/1612:53\n4/12 Show Pre-sale Time: 3/1613:23","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Melbourne | Jay Chou - \"Carnival Ⅱ\" World Tour","category":"演唱会 Concert","poiId":"154185316","startTime":"2026/10/16","endTime":"2026/10/16","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"周杰伦","city":"Melbourne","country":"澳大利亚","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Melbourne | Jay Chou - \"Carnival Ⅱ\" World Tour","category_en":"Concert","artist_en":"Jay Chou","city_en":"Melbourne","country_en":"Australia","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"成都 · 于适YOSH「适诗」2026巡回演唱会-成都站","category":"演唱会 Concert","poiId":"154179687","startTime":"2026/04/17","endTime":"2026/04/18","saleTime":"2026/03/25 04:22","sale2Time":"2026/04/08 04:22","sale3Time":"","grading":"S","remarks":"4月18日场次:2026年4月8日12:22\n4月19日场次:2026年4月8日13:22","artist":"于适","city":"成都","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Chengdu · Yu Shi (YOSH)\" Shi Shi\"2026 World Tour-Chengdu Stop","category_en":"Concert","artist_en":"Yu Shi","city_en":"Chengdu","country_en":"China","status_en":"","remarks_en":"4/18 Show: 2026 4/812:22\n4/19 Show: 2026 4/813:22","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"苏州 · 徐良“时间折叠”巡回演唱会-苏州站","category":"演唱会 Concert","poiId":"154814737","startTime":"2026/05/22","endTime":"2026/05/30","saleTime":"","sale2Time":"2026/05/14 08:30","sale3Time":"","grading":"S","remarks":"今日二开流量较高","artist":"徐良","city":"苏州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Suzhou · Xu Liang“Time Folding” World Tour-Suzhou Stop","category_en":"Concert","artist_en":"Xu Liang","city_en":"Suzhou","country_en":"China","status_en":"","remarks_en":"Second Round Today High Traffic","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"天津 · 陶喆 Soul Power II PLUS 2026世界巡回演唱会-天津站","category":"演唱会 Concert","poiId":"153978039","startTime":"2026/04/09","endTime":"2026/04/11","saleTime":"2026/03/03 12:00","sale2Time":"2026/03/23 12:00","sale3Time":"","grading":"S+","remarks":"","artist":"陶喆","city":"天津","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Tianjin · David Tao Soul Power II PLUS 2026 World Tour-Tianjin Stop","category_en":"Concert","artist_en":"David Tao","city_en":"Tianjin","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"bigbang","category":"演唱会 Concert","poiId":"","startTime":"","endTime":"","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"待官宣","artist":"BIGBANG","city":"Malaysia, Hong Kong, Thailand","country":"Malaysia, Hong Kong, Thailand","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"bigbang","category_en":"Concert","artist_en":"BIGBANG","city_en":"Malaysia, Hong Kong, Thailand","country_en":"Malaysia, Hong Kong, Thailand","status_en":"","remarks_en":"To Be Announced","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"杭州 · 王力宏「最好的地方II」世界巡回演唱会-杭州站","category":"演唱会 Concert","poiId":"154178491","startTime":"2026/05/28","endTime":"2026/05/30","saleTime":"2026/04/21 07:33","sale2Time":"","sale3Time":"","grading":"S+","remarks":"加场5.29","artist":"王力宏","city":"杭州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hangzhou · Wang Leehom[The Best Place II] World Tour-Hangzhou Stop","category_en":"Concert","artist_en":"Wang Leehom","city_en":"Hangzhou","country_en":"China","status_en":"","remarks_en":"Added Show5.29","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"武汉 · 周深2026「深深的」巡回演唱会 武汉站","category":"演唱会 Concert","poiId":"154119211","startTime":"2026/05/01","endTime":"2026/05/02","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"周深","city":"武汉","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Wuhan · Zhou Shen2026\" So Deep\" World Tour Wuhan Stop","category_en":"Concert","artist_en":"Zhou Shen","city_en":"Wuhan","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"上海金山国际音乐烟花秀","category":"展览 Exhibition","poiId":"154215037","startTime":"2026/05/01","endTime":"2026/05/03","saleTime":"","sale2Time":"","sale3Time":"","grading":"A","remarks":"业务售卖热门演出活动","artist":"","city":"上海","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shanghai Jinshan International Music Fireworks Show","category_en":"Exhibition","artist_en":"","city_en":"Shanghai","country_en":"China","status_en":"","remarks_en":"Business-Sold Popular Show","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Hong Kong | Prudential Presents: “AUT NIHILO” Sun Yanzi in Concert - Hong Kong","category":"演唱会 Concert","poiId":"153503197","startTime":"2026/03/12","endTime":"2026/03/14","saleTime":"2026/02/09 02:00","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"孙燕姿","city":"Hong Kong","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hong Kong | Prudential Presents: “AUT NIHILO” Sun Yanzi in Concert - Hong Kong","category_en":"Concert","artist_en":"Stefanie Sun","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"杭州·COMICUP 32 创作交流展","category":"展览 Exhibition","poiId":"154259064","startTime":"2026/04/30","endTime":"2026/05/04","saleTime":"2026/04/25 11:00","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"","city":"杭州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hangzhou · COMICUP 32 Creative Exchange Exhibition","category_en":"Exhibition","artist_en":"","city_en":"Hangzhou","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"上海 · 舞蹈诗剧《只此青绿》——舞绘《千里江山图》","category":"其他 Others","poiId":"154081767","startTime":"2026/06/02","endTime":"2026/06/06","saleTime":"2026/02/27 07:00","sale2Time":"","sale3Time":"","grading":"","remarks":"合作售票，近年高热度舞剧","artist":"","city":"上海","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shanghai · Dance Poetry Drama«Poetic Dance: The Journey of a Legendary Landscape Painting» — Dance Painting«A Thousand Li of Rivers and Mountains»","category_en":"Others","artist_en":"","city_en":"Shanghai","country_en":"China","status_en":"","remarks_en":"Partner Ticketing, Recent High-Profile Dance Drama","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"深圳 · ONEREPUBLIC “From Asia, With Love” 2026深圳站","category":"演唱会 Concert","poiId":"153978216","startTime":"2026/04/16","endTime":"2026/04/16","saleTime":"2026/01/27 08:00","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"OneRepublic","city":"深圳","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shenzhen · ONEREPUBLIC “From Asia, With Love” 2026 Shenzhen Stop","category_en":"Concert","artist_en":"OneRepublic","city_en":"Shenzhen","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"重庆 · 周深2026「深深的」巡回演唱会","category":"演唱会 Concert","poiId":"154119212","startTime":"2026/05/29","endTime":"2026/05/30","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"周深","city":"重庆","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Chongqing · Zhou Shen2026\" So Deep\" World Tour","category_en":"Concert","artist_en":"Zhou Shen","city_en":"Chongqing","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"杭州 · 徐良“时间折叠”巡回演唱会-杭州站","category":"演唱会 Concert","poiId":"154171219","startTime":"2026/04/16","endTime":"2026/04/18","saleTime":"2026/03/23 07:00","sale2Time":"2026/04/03 07:00","sale3Time":"","grading":"S","remarks":"4月17日场次开票时间：4月3日15:00\n4月18日场次开票时间： 4月3日15:30\n4月19日场次开票时间： 4月3日16:00","artist":"徐良","city":"杭州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Hangzhou · Xu Liang“Time Folding” World Tour-Hangzhou Stop","category_en":"Concert","artist_en":"Xu Liang","city_en":"Hangzhou","country_en":"China","status_en":"","remarks_en":"4/17 Show On-Sale Time: 4/315:00\n4/18 Show On-Sale Time: 4/315:30\n4/19 Show On-Sale Time: 4/316:00","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"广州 · “万物安生时”李健巡回演唱会-广州站","category":"演唱会 Concert","poiId":"154082911","startTime":"2026/04/17","endTime":"2026/04/17","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"26年巡演首站","artist":"李健","city":"广州","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Guangzhou · “When All Things Live in Peace” Li JianWorld Tour-Guangzhou Stop","category_en":"Concert","artist_en":"Li Jian","city_en":"Guangzhou","country_en":"China","status_en":"","remarks_en":"26 Tour First Stop","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"北京 · Evolution Nic live谢霆锋进化演唱会-北京站","category":"演唱会 Concert","poiId":"154116903","startTime":"2026/05/29","endTime":"2026/05/30","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"谢霆锋","city":"北京","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Beijing · Evolution Nic Live (Nicholas Tse Evolution Concert)-Beijing Stop","category_en":"Concert","artist_en":"Nicholas Tse","city_en":"Beijing","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"日本爱知 · CxM [DOUBLE UP] LIVE PARTY in JAPAN","category":"演唱会 Concert","poiId":"153445355","startTime":"2026/01/30","endTime":"2026/01/31","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"珉奎","city":"爱知","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Aichi, Japan · CxM [DOUBLE UP] LIVE PARTY in JAPAN","category_en":"Concert","artist_en":"Mingyu","city_en":"Aichi","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"FUJI ROCK FESTIVAL’26","category":"音乐节 Music Festival","poiId":"154005850","startTime":"2026/07/23","endTime":"2026/07/25","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"","city":"Yuzawa Town, Niigata Prefecture，新潟县汤泽町","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"FUJI ROCK FESTIVAL’26","category_en":"Music Festival","artist_en":"","city_en":"Yuzawa Town, Niigata Prefecture, 新潟县汤泽町","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"深圳 · 华晨宇火星演唱会-深圳站","category":"演唱会 Concert","poiId":"153508900","startTime":"2026/02/05","endTime":"2026/02/07","saleTime":"2026/01/24 10:27","sale2Time":"","sale3Time":"2026/02/04 10:27","grading":"S+","remarks":"","artist":"华晨宇","city":"深圳","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Shenzhen · Hua ChenyuMars Concert-Shenzhen Stop","category_en":"Concert","artist_en":"Hua Chenyu","city_en":"Shenzhen","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"西安 · EvolutionNicLive谢霆锋进化演唱会-西安站","category":"演唱会 Concert","poiId":"154179731","startTime":"2026/06/26","endTime":"2026/06/27","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"谢霆锋","city":"西安","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Xi'an · Evolution Nic Live (Nicholas Tse Evolution Concert)-Xi'an Stop","category_en":"Concert","artist_en":"Nicholas Tse","city_en":"Xi'an","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"日本大阪 · TREASURE TOUR [PULSE ON] IN JAPAN","category":"演唱会 Concert","poiId":"151738692","startTime":"2026/02/09","endTime":"2026/02/10","saleTime":"2026/01/15 06:30","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"TREASURE","city":"大阪","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Osaka, Japan · TREASURE TOUR [PULSE ON] IN JAPAN","category_en":"Concert","artist_en":"TREASURE","city_en":"Osaka","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"cooperation","name":"Summer Sonic Osaka 2026","category":"音乐节 Music Festival","poiId":"143363970 ","startTime":"2026/08/13","endTime":"2026/08/15","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"JENNIE ✖\nJamiroquai ✖\nkeshi ✖\nSuede ✖\nAdo ✖\nサカナクション ✖\nAiNA THE END ✖\nPentatonix ✖\nLe sserafim ✖\nL'Arc〜en〜Ciel ✖\n羊文学 ✖\nKasabian ✖\nThe Strokes ✖\nAlex Warren ✖\nキタニタツヤ ✖\nFKA twigs ✖\nBABYMETAL ","city":"Osaka","country":"日本","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"Summer Sonic Osaka 2026","category_en":"Music Festival","artist_en":"JENNIE ✖\nJamiroquai ✖\nkeshi ✖\nSuede ✖\nAdo ✖\nサカナクション ✖\nAiNA THE END ✖\nPentatonix ✖\nLe sserafim ✖\nL'Arc〜en〜Ciel ✖\n羊文学 ✖\nKasabian ✖\nThe Strokes ✖\nAlex Warren ✖\nキタニタツヤ ✖\nFKA twigs ✖\nBABYMETAL ","city_en":"Osaka","country_en":"Japan","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"non_cooperation","name":"薛之谦“万兽之王”巡回演唱会-南京站","category":"演唱会 Concert","poiId":"","startTime":"2026/05/21","endTime":"2026/05/30","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"薛之谦","city":"南京","country":"中国","status":"","infoTime":"2026/03/18 09:00","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"内地","pushSites":"CN","eventType":"","createdTime":0,"name_en":"Joker Xue“King of Beasts” World Tour-Nanjing Stop","category_en":"Concert","artist_en":"Joker Xue","city_en":"Nanjing","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"内地","infoTime_en":"2026/03/18 09:00","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":"CN"},{"source":"non_cooperation","name":"GAI上海演唱会","category":"演唱会 Concert","poiId":"","startTime":"2026/09/04","endTime":"2026/09/04","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"GAI","city":"上海","country":"中国","status":"","infoTime":"2026/02/14 03:30","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"内地","pushSites":"CN","eventType":"","createdTime":0,"name_en":"GAI ShanghaiConcert","category_en":"Concert","artist_en":"GAI","city_en":"Shanghai","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"内地","infoTime_en":"2026/02/14 03:30","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":"CN"},{"source":"non_cooperation","name":"王力宏2026「最好的地方II」巡回演唱会杭州站","category":"演唱会 Concert","poiId":"","startTime":"2026/05/29","endTime":"2026/05/30","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"","artist":"王力宏","city":"杭州","country":"中国","status":"","infoTime":"2026/03/13 05:57","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"内地","pushSites":"CN","eventType":"","createdTime":0,"name_en":"Wang Leehom2026[The Best Place II] World Tour Hangzhou Stop","category_en":"Concert","artist_en":"Wang Leehom","city_en":"Hangzhou","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"内地","infoTime_en":"2026/03/13 05:57","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":"CN"},{"source":"non_cooperation","name":"2026 MAMA AWARDS","category":"演唱会 Concert","poiId":"","startTime":"2026/11/19","endTime":"2026/11/20","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"The MAMA Awards is a major music awards ceremony presented annually by entertainment company CJ ENM. It is Asia's largest music awards ceremony and one of South Korea's most representative music awards ceremonies.","artist":"","city":"Osaka","country":"日本","status":"","infoTime":"2026/03/30 23:00","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"CN,KR,JP","pushSites":"JP&KR, CN","eventType":"","createdTime":0,"name_en":"2026 MAMA AWARDS","category_en":"Concert","artist_en":"","city_en":"Osaka","country_en":"Japan","status_en":"","remarks_en":"The MAMA Awards is a major music awards ceremony presented annually by entertainment company CJ ENM. It is Asia's largest music awards ceremony and one of South Korea's most representative music awards ceremonies.","eventType_en":"","keySites_en":"CN,KR,JP","infoTime_en":"2026/03/30 23:00","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":"JP&KR, CN"},{"source":"non_cooperation","name":"广州 · 林宥嘉《超级管家》巡回演唱会","category":"演唱会 Concert","poiId":"154836486","startTime":"2026/05/29","endTime":"2026/05/29","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"首次体育场巡回，广州首场官宣","artist":"林宥嘉","city":"广州","country":"中国","status":"","infoTime":"2026/02/04 03:00","announceTime":"2026/04/29 12:30","addedAnnounceTime":"","registrationTime":"","keySites":"内地","pushSites":"CN","eventType":"","createdTime":0,"name_en":"Guangzhou · Yoga Lin\" Super Butler\" World Tour","category_en":"Concert","artist_en":"Yoga Lin","city_en":"Guangzhou","country_en":"China","status_en":"","remarks_en":"First Stadium Tour, Guangzhou First Show Officially Announced","eventType_en":"","keySites_en":"内地","infoTime_en":"2026/02/04 03:00","announceTime_en":"2026/04/29 12:30","addedAnnounceTime_en":"","pushSites_en":"CN"},{"source":"non_cooperation","name":"Seoul | MAMAMOO 2026 WORLD TOUR [4WARD]","category":"演唱会 Concert","poiId":"155036335","startTime":"2026/06/18","endTime":"2026/06/20","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"新主题巡演首站；New Theme Tour First Stop","artist":"Mamamoo","city":"Seoul","country":"韩国","status":"","infoTime":"","announceTime":"2026/05/13 03:30","addedAnnounceTime":"","registrationTime":"","keySites":"内地，港澳台，韩国","pushSites":"JP&KR, CN, HK&MO&TW","eventType":"","createdTime":0,"name_en":"Seoul | MAMAMOO 2026 WORLD TOUR [4WARD]","category_en":"Concert","artist_en":"Mamamoo","city_en":"Seoul","country_en":"韩国","status_en":"","remarks_en":"New Theme Tour First Stop; New Theme Tour First Stop","eventType_en":"","keySites_en":"内地, 港澳台, 韩国","infoTime_en":"","announceTime_en":"2026/05/13 03:30","addedAnnounceTime_en":"","pushSites_en":"JP&KR, CN, HK&MO&TW"},{"source":"non_cooperation","name":"苏州 · 天气刚刚好·白鹿十周年拾光音乐会","category":"演唱会 Concert","poiId":"","startTime":"2026/06/26","endTime":"2026/06/26","saleTime":"","sale2Time":"","sale3Time":"","grading":"A","remarks":"","artist":"白鹿","city":"苏州","country":"中国","status":"","infoTime":"","announceTime":"2026/05/14 03:00","addedAnnounceTime":"","registrationTime":"","keySites":"内地","pushSites":"CN","eventType":"","createdTime":0,"name_en":"Suzhou · Just Right Weather · Bai Lu 10th Anniversary Concert","category_en":"Concert","artist_en":"Bai Lu","city_en":"Suzhou","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"内地","infoTime_en":"","announceTime_en":"2026/05/14 03:00","addedAnnounceTime_en":"","pushSites_en":"CN"},{"source":"non_cooperation","name":"Hong Kong | BTS WORLD TOUR 'ARIRANG' 2026","category":"演唱会 Concert","poiId":"","startTime":"2027/03/03","endTime":"2027/03/06","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"官网已官宣日期，场馆待定\nThe official date has been announced on the website; the venue is yet to be determined.","artist":"BTS","city":"香港","country":"中国","status":"","infoTime":"2026/03/25 10:30","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"内地，���澳台，韩国","pushSites":"CN, HK&MO&TW, JP&KR","eventType":"","createdTime":0,"name_en":"Hong Kong | BTS WORLD TOUR 'ARIRANG' 2026","category_en":"Concert","artist_en":"BTS","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"Date Officially Announced on Website, Venue TBD\nThe official date has been announced on the website; the venue is yet to be determined.","eventType_en":"","keySites_en":"内地, ���澳台, 韩国","infoTime_en":"2026/03/25 10:30","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":"CN, HK&MO&TW, JP&KR"},{"source":"non_cooperation","name":"汪苏泷2026「明日世界」巡回演唱会-成都站","category":"演唱会 Concert","poiId":"","startTime":"2026/06/18","endTime":"2026/06/20","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"过审","artist":"汪苏泷","city":"成都","country":"中国","status":"","infoTime":"2026/05/14 07:30","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"内地","pushSites":"CN","eventType":"","createdTime":0,"name_en":"Silence Wang2026[Tomorrow's World] World Tour-Chengdu Stop","category_en":"Concert","artist_en":"Silence Wang","city_en":"Chengdu","country_en":"China","status_en":"","remarks_en":"Approved","eventType_en":"","keySites_en":"内地","infoTime_en":"2026/05/14 07:30","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":"CN"},{"source":"non_cooperation","name":"中国香港 · 张天赋 E=MC² 演唱会2026","category":"演唱会 Concert","poiId":"","startTime":"2026/07/06","endTime":"2026/07/10","saleTime":"","sale2Time":"","sale3Time":"","grading":"A","remarks":"火热加场，连开五场；大湾区高热艺人","artist":"MC张天赋","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"2026/05/14 06:20","addedAnnounceTime":"","registrationTime":"","keySites":"香港，内地","pushSites":"CN, HK&MO&TW","eventType":"","createdTime":0,"name_en":"Hong Kong, China · MC Cheung Tin Fu E=MC² Concert2026","category_en":"Concert","artist_en":"MC Cheung Tin Fu","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"Hot Added Shows, Five Consecutive Shows; Greater Bay Area Hot Artist","eventType_en":"","keySites_en":"Hong Kong, 内地","infoTime_en":"","announceTime_en":"2026/05/14 06:20","addedAnnounceTime_en":"","pushSites_en":"CN, HK&MO&TW"},{"source":"non_cooperation","name":"26年许嵩全新主题《安泊猜想》巡演","category":"演唱会 Concert","poiId":"","startTime":"2026/07/23","endTime":"2026/07/25","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"全新主题巡演；预计7月底","artist":"许嵩","city":"杭州、武汉","country":"中国","status":"","infoTime":"2026/05/14 05:40","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"内地","pushSites":"CN","eventType":"","createdTime":0,"name_en":"26 Vae XuBrand-New Theme«Anbo Conjecture» Tour","category_en":"Concert","artist_en":"Vae Xu","city_en":"Hangzhou, Wuhan","country_en":"China","status_en":"","remarks_en":"Brand-New Theme Tour; ExpectedEnd of July","eventType_en":"","keySites_en":"内地","infoTime_en":"2026/05/14 05:40","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":"CN"},{"source":"non_cooperation","name":"2026 2PM Concert “THE RETURN” in INCHEON","category":"演唱会 Concert","poiId":"","startTime":"2026/08/07","endTime":"2026/08/08","saleTime":"","sale2Time":"","sale3Time":"","grading":"A","remarks":"三年来的首次完整体回归演唱会；The first full group comeback concert in three years.","artist":"2PM","city":"Incheon","country":"韩国","status":"","infoTime":"2026/05/13 05:40","announceTime":"2026/05/13 05:40","addedAnnounceTime":"","registrationTime":"","keySites":"内地，港澳台，韩国","pushSites":"JP&KR, CN, HK&MO&TW","eventType":"","createdTime":0,"name_en":"2026 2PM Concert “THE RETURN” in INCHEON","category_en":"Concert","artist_en":"2PM","city_en":"Incheon","country_en":"韩国","status_en":"","remarks_en":"first full group comeback in three years Concert; The first full group comeback concert in three years.","eventType_en":"","keySites_en":"内地, 港澳台, 韩国","infoTime_en":"2026/05/13 05:40","announceTime_en":"2026/05/13 05:40","addedAnnounceTime_en":"","pushSites_en":"JP&KR, CN, HK&MO&TW"},{"source":"non_cooperation","name":"十个勤天《不说再见》巡演","category":"演唱会 Concert","poiId":"","startTime":"2026/06/25","endTime":"2026/06/27","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"据传为收官场","artist":"十个勤天","city":"南京","country":"中国","status":"","infoTime":"2026/05/14 05:40","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"内地","pushSites":"CN","eventType":"","createdTime":0,"name_en":"Ten Hardworking Boys«No Goodbye» Tour","category_en":"Concert","artist_en":"Ten Hardworking Boys","city_en":"Nanjing","country_en":"China","status_en":"","remarks_en":"Rumored to be Final Show","eventType_en":"","keySites_en":"内地","infoTime_en":"2026/05/14 05:40","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":"CN"},{"source":"non_cooperation","name":"G.E.M.邓紫棋 I AM GLORIA 巡回演唱会-杭州站","category":"演唱会 Concert","poiId":"","startTime":"2026/07/09","endTime":"2026/07/11","saleTime":"","sale2Time":"","sale3Time":"","grading":"S+","remarks":"暑期档","artist":"邓紫棋","city":"杭州","country":"中国","status":"","infoTime":"2026/02/11 04:00","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"内地","pushSites":"CN","eventType":"","createdTime":0,"name_en":"G.E.M. I AM GLORIA World Tour-Hangzhou Stop","category_en":"Concert","artist_en":"G.E.M.","city_en":"Hangzhou","country_en":"China","status_en":"","remarks_en":"Summer Season","eventType_en":"","keySites_en":"内地","infoTime_en":"2026/02/11 04:00","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":"CN"},{"source":"sports","name":"CONNEXUS TRAVEL FIFA WORLD CUP 2026 ","category":"","poiId":"154168834","startTime":"2026/06/10","endTime":"2026/07/18","saleTime":"2026/03/27 03:50","sale2Time":"","sale3Time":"","grading":"S+","remarks":"Trip.com are a partner in the sale of premium hospitality tickets for the World Cup.\nKey matches: World Cup 2026 Key Matches","artist":"","city":"美国、加拿大、墨西哥多地","country":"美国、加拿大、墨西哥","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"Football","createdTime":0,"name_en":"CONNEXUS TRAVEL FIFA WORLD CUP 2026 ","category_en":"","artist_en":"","city_en":"Multiple cities in USA/Canada/Mexico","country_en":"USA, Canada, Mexico","status_en":"","remarks_en":"Trip.com are a partner in the sale of premium hospitality tickets for the World Cup.\nKey matches: World Cup 2026 Key Matches","eventType_en":"Football","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"sports","name":"香港足球盛会2026 健络通杯 切尔西vs尤文图斯","category":"","poiId":"154238254","startTime":"2026/08/04","endTime":"2026/08/04","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"流量暴增","artist":"切尔西vs尤文图斯","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"Football","createdTime":0,"name_en":"Hong Kong Football Festival 2026 Jianluotong Cup Chelsea vs Juventus","category_en":"","artist_en":"Chelsea vs Juventus","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"Traffic Surge","eventType_en":"Football","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"sports","name":"2026奥迪足球峰会 - 拜仁慕尼黑vs阿斯顿维拉 香港启德球场","category":"","poiId":"154241422","startTime":"2026/08/06","endTime":"2026/08/06","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"今日呈现较高流量","artist":"拜仁慕尼黑vs阿斯顿维拉","city":"香港","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"Football","createdTime":0,"name_en":"2026 Audi Football Summit - Bayern Munich vs Aston Villa Hong Kong Kai Tak Stadium","category_en":"","artist_en":"Bayern Munich vs Aston Villa","city_en":"Hong Kong","country_en":"China","status_en":"","remarks_en":"High Traffic Today","eventType_en":"Football","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"sports","name":"2026上海马拉松","category":"","poiId":"153979195","startTime":"2026/12/05","endTime":"2026/12/05","saleTime":"","sale2Time":"","sale3Time":"","grading":"A","remarks":"","artist":"","city":"上海","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"2026 Shanghai Marathon","category_en":"","artist_en":"","city_en":"Shanghai","country_en":"China","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"sports","name":"2026 UFC精英之路澳门","category":"","poiId":"154194557","startTime":"2026/05/27","endTime":"2026/05/29","saleTime":"","sale2Time":"","sale3Time":"","grading":"","remarks":"","artist":"","city":"澳门","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"格斗","createdTime":0,"name_en":"2026 Road to UFC Macau","category_en":"","artist_en":"","city_en":"Macao","country_en":"China","status_en":"","remarks_en":"","eventType_en":"Combat Sports","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"sports","name":"2026 UFC Fight Night Macau & 2026 Road to UFC Macau","category":"","poiId":"154189362","startTime":"2026/05/27","endTime":"2026/05/29","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"","city":"澳门","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"格斗","createdTime":0,"name_en":"2026 UFC Fight Night Macau & 2026 Road to UFC Macau","category_en":"","artist_en":"","city_en":"Macao","country_en":"China","status_en":"","remarks_en":"","eventType_en":"Combat Sports","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"sports","name":"2026 CS亚洲邀请赛","category":"","poiId":"154194410","startTime":"2026/05/22","endTime":"2026/05/23","saleTime":"2026/04/16 06:30","sale2Time":"","sale3Time":"","grading":"A","remarks":"","artist":"","city":"上海","country":"中国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"电竞","createdTime":0,"name_en":"2026 CS Asia Invitational","category_en":"","artist_en":"","city_en":"Shanghai","country_en":"China","status_en":"","remarks_en":"","eventType_en":"Esports","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"sports","name":"Wimbledon Championships 2026","category":"","poiId":"152208435","startTime":"2026/07/08","endTime":"2026/07/11","saleTime":"","sale2Time":"","sale3Time":"","grading":"S","remarks":"","artist":"","city":"Wimbledon","country":"英国","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"Tennis","createdTime":0,"name_en":"Wimbledon Championships 2026","category_en":"","artist_en":"","city_en":"Wimbledon","country_en":"UK","status_en":"","remarks_en":"","eventType_en":"Tennis","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""},{"source":"sports","name":"2026开普敦马拉松","category":"","poiId":"153352216","startTime":"2026/05/23","endTime":"2026/05/23","saleTime":"","sale2Time":"","sale3Time":"","grading":"A","remarks":"","artist":"","city":"Cape Town","country":"South Africa","status":"","infoTime":"","announceTime":"","addedAnnounceTime":"","registrationTime":"","keySites":"","pushSites":"","eventType":"","createdTime":0,"name_en":"2026 Cape Town Marathon","category_en":"","artist_en":"","city_en":"Cape Town","country_en":"South Africa","status_en":"","remarks_en":"","eventType_en":"","keySites_en":"","infoTime_en":"","announceTime_en":"","addedAnnounceTime_en":"","pushSites_en":""}]}</script>
+<script id="dict" type="application/json">{"country":{"中国":"China","新加坡":"Singapore","日本":"Japan","泰国":"Thailand","澳大利亚":"Australia","英国":"UK","阿联酋":"UAE","马来西亚":"Malaysia","吉隆坡":"Kuala Lumpur","美国、加拿大、墨西哥":"USA, Canada, Mexico"},"category":{"其他 Others":"Others","否 NO":"No","是 YES":"Yes","展览 Exhibition":"Exhibition","演唱会 Concert":"Concert","见面会 Fanmeeting":"Fanmeeting","音乐节 Music Festival":"Music Festival"},"eventType":{"乒乓球":"Table Tennis","格斗":"Combat Sports","电竞":"Esports","篮球":"Basketball","足球":"Football","马拉松":"Marathon"}}</script>
+<script>
+(function(){
+  const I18N = {
+    zh: {
+      title: '热门活动场次监控',
+      subtitle: '合作类 · 非合作类 · 赛事类 数据聚合视图',
+      source: '数据源: 飞书表「【新】热门活动场次监控」',
+      updated: '更新',
+      'lbl-source': '类型',
+      'lbl-grading': '评级',
+      'lbl-category': '品类',
+      'lbl-country': '国家',
+      'lbl-year': '年份',
+      'lbl-month': '月份',
+      'ph-search': '搜索 名称 / 艺人 / 城市 / 国家 / 备注…',
+      reset: '重置筛选',
+      'only-active': '仅未结束',
+      overview: '总览',
+      total: '总场次',
+      'total-label': '活动场次',
+      'grade-dist': '评级分布',
+      'top-country': 'Top 国家/地区',
+      all: '全部',
+      shows: '场',
+      'col-no': '#',
+      'col-source': '类型',
+      'col-grade': '评级',
+      'col-name': '活动名称',
+      'col-category': '品类',
+      'col-artist': '艺人/选手',
+      'col-city': '举办城市',
+      'col-country': '国家',
+      'col-poi': 'POIID',
+      'col-start': '开始时间',
+      'col-end': '结束时间',
+      'col-info': '信息披露时间',
+      'col-announce': '官宣时间',
+      'col-added': '加场官宣/报名时间',
+      'col-sale': '开售时间',
+      'col-sale2': '二次开售时间',
+      'col-sale3': '三次开售时间',
+      'col-status': '当前状态',
+      'col-keysites': '重点关注站点',
+      'col-pushsites': '推送站点',
+      'col-remarks': '备注',
+      empty: '—',
+      noData: '没有匹配的记录',
+      monthNames: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
+      noMonth: '未排期',
+      sources: { cooperation: '合作类', non_cooperation: '非合作类', sports: '赛事类' }
+    },
+    en: {
+      title: 'Hot Event Monitoring',
+      subtitle: 'Cooperation · Non-Cooperation · Sports — Aggregated View',
+      source: 'Source: Feishu「Hot Event Monitoring」',
+      updated: 'Updated',
+      'lbl-source': 'Type',
+      'lbl-grading': 'Grade',
+      'lbl-category': 'Category',
+      'lbl-country': 'Country',
+      'lbl-year': 'Year',
+      'lbl-month': 'Month',
+      'ph-search': 'Search name / artist / city / country / remarks…',
+      reset: 'Reset filters',
+      'only-active': 'Active only',
+      overview: 'Overview',
+      total: 'Total Events',
+      'total-label': 'events',
+      'grade-dist': 'Grade Distribution',
+      'top-country': 'Top Countries',
+      all: 'All',
+      shows: 'shows',
+      'col-no': '#',
+      'col-source': 'Type',
+      'col-grade': 'Grade',
+      'col-name': 'Event Name',
+      'col-category': 'Category',
+      'col-artist': 'Artist / Player',
+      'col-city': 'City',
+      'col-country': 'Country',
+      'col-poi': 'POIID',
+      'col-start': 'Start',
+      'col-end': 'End',
+      'col-info': 'Info Disclosure',
+      'col-announce': 'Official Announcement',
+      'col-added': 'Added Show / Registration',
+      'col-sale': 'On-sale',
+      'col-sale2': '2nd On-sale',
+      'col-sale3': '3rd On-sale',
+      'col-status': 'Status',
+      'col-keysites': 'Key Sites',
+      'col-pushsites': 'Push Sites',
+      'col-remarks': 'Remarks',
+      empty: '—',
+      noData: 'No matching records',
+      monthNames: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      noMonth: 'Unscheduled',
+      sources: { cooperation: 'Cooperation', non_cooperation: 'Non-Cooperation', sports: 'Sports' }
+    }
+  };
+  let LANG = 'zh';
+  const t = (k) => (I18N[LANG][k] !== undefined ? I18N[LANG][k] : k);
+
+  // Field accessor: in English mode prefer *_en when available
+  function fld(r, key) {
+    if (LANG === 'en') {
+      const en = r[key + '_en'];
+      if (en !== undefined && en !== null && en !== '') return en;
+    }
+    return r[key] || '';
+  }
+
+  const RAW = JSON.parse(document.getElementById('data').textContent);
+  const DICT = JSON.parse(document.getElementById('dict').textContent);
+  let RECORDS = RAW.records;
+  document.getElementById('update-date').textContent = new Date().toLocaleDateString();
+
+  // chip label 翻译: 用浏览器端 DICT(国家/品类/赛事类型),其他直接返回原值
+  function translate(value, kind) {
+    if (!value) return value;
+    if (kind && DICT[kind] && DICT[kind][value]) return DICT[kind][value];
+    return value;
+  }
+
+  // Parse date helpers
+  function parseDate(v) {
+    if (!v) return null;
+    const s = ('' + v).trim();
+    if (!s) return null;
+    if (/^\d{13}$/.test(s)) return new Date(+s);
+    const norm = s.replace(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/, '$1-$2-$3');
+    const d = new Date(norm);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function startOfToday() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+
+  // Pre-compute month bucket
+  RECORDS.forEach(r => {
+    const d = parseDate(r.startTime) || parseDate(r.endTime);
+    if (d) { r._year = d.getFullYear(); r._month = d.getMonth() + 1; r._sortDate = d.getTime(); }
+    else { r._year = 0; r._month = 0; r._sortDate = Infinity; }
+  });
+
+  // ---------- State ----------
+  const state = {
+    search: '',
+    source: '',          // '' | cooperation | non_cooperation | sports
+    grading: '',         // '' | 'S+' | 'S' | 'A' | 'B' | 'C' | 'D'
+    category: '',
+    country: '',
+    year: '',             // '' | 'YYYY'
+    month: '',           // '' | 'YYYY-MM'
+    activeOnly: false
+  };
+
+  // ---------- Build filters ----------
+  const $ = id => document.getElementById(id);
+
+  function uniqueCount(getKey) {
+    const m = new Map();
+    for (const r of RECORDS) {
+      const k = getKey(r);
+      if (!k) continue;
+      m.set(k, (m.get(k) || 0) + 1);
+    }
+    return [...m.entries()].sort((a,b) => b[1] - a[1]);
+  }
+
+  function renderChips(containerId, options, currentVal, onSelect) {
+    const el = $(containerId);
+    el.innerHTML = '';
+    const allBtn = document.createElement('span');
+    allBtn.className = 'chip' + (currentVal === '' ? ' active' : '');
+    allBtn.textContent = t('all');
+    allBtn.onclick = () => onSelect('');
+    el.appendChild(allBtn);
+    options.forEach(([val, cnt, displayLabel]) => {
+      const c = document.createElement('span');
+      c.className = 'chip' + (currentVal === val ? ' active' : '');
+      c.innerHTML = (displayLabel || val) + (cnt != null ? ' <span class="cnt">' + cnt + '</span>' : '');
+      c.onclick = () => onSelect(val);
+      el.appendChild(c);
+    });
+  }
+
+  function buildFilters() {
+    // Source
+    const sourceOpts = ['cooperation','non_cooperation','sports'].map(s => {
+      const cnt = RECORDS.filter(r => r.source === s).length;
+      return [s, cnt, I18N[LANG].sources[s]];
+    });
+    renderChips('f-source', sourceOpts, state.source, v => { state.source = v; rerender(); });
+
+    // Grading - fixed order
+    const gradeOrder = ['S+','S','A','B','C','D'];
+    const gradeCnts = new Map();
+    for (const r of RECORDS) if (r.grading) gradeCnts.set(r.grading.trim(), (gradeCnts.get(r.grading.trim())||0)+1);
+    const gradeOpts = gradeOrder.filter(g => gradeCnts.has(g)).map(g => [g, gradeCnts.get(g), g]);
+    renderChips('f-grading', gradeOpts, state.grading, v => { state.grading = v; rerender(); });
+
+    // Category
+    const catOpts = uniqueCount(r => r.category && r.category.trim()).slice(0, 30).map(([k,c]) => {
+      const label = LANG === 'en' ? translate(k, 'category') : k;
+      return [k, c, label];
+    });
+    renderChips('f-category', catOpts, state.category, v => { state.category = v; rerender(); });
+
+    // Country
+    const countryOpts = uniqueCount(r => r.country && r.country.trim()).slice(0, 30).map(([k,c]) => {
+      const label = LANG === 'en' ? translate(k, 'country') : k;
+      return [k, c, label];
+    });
+    renderChips('f-country', countryOpts, state.country, v => { state.country = v; rerender(); });
+
+    // Year - sort chronologically
+    const yearMap = new Map();
+    for (const r of RECORDS) {
+      if (r._year) yearMap.set(String(r._year), (yearMap.get(String(r._year))||0)+1);
+    }
+    const yearOpts = [...yearMap.keys()].sort().map(y => [y, yearMap.get(y), y]);
+    renderChips('f-year', yearOpts, state.year, v => { state.year = v; rerender(); });
+
+    // Month - sort chronologically
+    const today = startOfToday();
+    const monthMap = new Map();
+    for (const r of RECORDS) {
+      if (r._year && r._month) {
+        const k = r._year + '-' + String(r._month).padStart(2,'0');
+        monthMap.set(k, (monthMap.get(k)||0)+1);
+      }
+    }
+    const monthKeys = [...monthMap.keys()].sort();
+    const monthOpts = monthKeys.map(k => {
+      const [y,m] = k.split('-');
+      const label = LANG === 'zh'
+        ? I18N[LANG].monthNames[+m - 1]
+        : I18N[LANG].monthNames[+m - 1] + ' ' + y;
+      return [k, monthMap.get(k), label];
+    });
+    renderChips('f-month', monthOpts, state.month, v => { state.month = v; rerender(); });
+  }
+
+  // ---------- Filtering ----------
+  function applyFilters(records) {
+    const today = startOfToday();
+    const search = state.search.trim().toLowerCase();
+    return records.filter(r => {
+      if (state.activeOnly) {
+        const ed = parseDate(r.endTime);
+        if (!ed || ed <= today) return false;
+      }
+      if (state.source && r.source !== state.source) return false;
+      if (state.grading && r.grading.trim() !== state.grading) return false;
+      if (state.category && r.category.trim() !== state.category) return false;
+      if (state.country && r.country.trim() !== state.country) return false;
+      if (state.year && String(r._year || '') !== state.year) return false;
+      if (state.month) {
+        const mk = (r._year || '') + '-' + String(r._month||'').padStart(2,'0');
+        if (mk !== state.month) return false;
+      }
+      if (search) {
+        const blob = LANG === 'en'
+          ? [r.name, r.name_en, r.artist, r.artist_en, r.city, r.city_en, r.country, r.country_en, r.remarks, r.remarks_en, r.category, r.category_en, r.eventType, r.eventType_en, r.keySites, r.pushSites, r.poiId].join(' ').toLowerCase()
+          : [r.name, r.artist, r.city, r.country, r.remarks, r.category, r.eventType, r.keySites, r.pushSites, r.poiId].join(' ').toLowerCase();
+        if (!blob.includes(search)) return false;
+      }
+      return true;
+    });
+  }
+
+  // ---------- Render Overview ----------
+  function renderOverview(filtered) {
+    $('ov-total').textContent = filtered.length;
+    // Source breakdown
+    const srcEl = $('ov-source');
+    srcEl.innerHTML = '';
+    ['cooperation','non_cooperation','sports'].forEach(s => {
+      const cnt = filtered.filter(r => r.source === s).length;
+      const div = document.createElement('div'); div.className = 'row';
+      div.innerHTML = '<span><span class="tag tag-source tag-source-'+s+'">'+I18N[LANG].sources[s]+'</span></span><span>' + cnt + '</span>';
+      srcEl.appendChild(div);
+    });
+    // Grading
+    const gEl = $('ov-grading');
+    gEl.innerHTML = '';
+    const gradeOrder = ['S+','S','A','B','C','D'];
+    const gradeColors = { 'S+':'var(--s-plus)','S':'var(--s)','A':'var(--a)','B':'var(--b)','C':'var(--c)','D':'var(--d)' };
+    const total = filtered.length || 1;
+    const gradeCnts = {};
+    gradeOrder.forEach(g => gradeCnts[g] = 0);
+    filtered.forEach(r => { const g = r.grading.trim(); if (gradeCnts[g] !== undefined) gradeCnts[g]++; });
+    gradeOrder.forEach(g => {
+      if (gradeCnts[g] === 0) return;
+      const pct = (gradeCnts[g] / total * 100).toFixed(1);
+      const row = document.createElement('div'); row.className = 'grade-row';
+      const safeG = g.replace('+','-plus');
+      row.innerHTML = '<span class="grade-tag tag-grade-'+safeG+'">'+g+'</span>' +
+                      '<div class="grade-bar"><div class="grade-bar-fill" style="width:'+pct+'%;background:'+gradeColors[g]+'"></div></div>' +
+                      '<span class="grade-cnt">'+gradeCnts[g]+'</span>';
+      gEl.appendChild(row);
+    });
+    // Country
+    const cEl = $('ov-country');
+    cEl.innerHTML = '';
+    const cMap = new Map();
+    filtered.forEach(r => {
+      const k = (LANG === 'en' && r.country_en ? r.country_en : r.country || '').trim();
+      if (k) cMap.set(k, (cMap.get(k)||0)+1);
+    });
+    const top = [...cMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0, 8);
+    top.forEach(([k, c], i) => {
+      const row = document.createElement('div'); row.className = 'top-row';
+      row.innerHTML = '<span class="top-rank">#'+(i+1)+'</span><span>'+escapeHtml(k)+'</span><span class="top-cnt">'+c+'</span>';
+      cEl.appendChild(row);
+    });
+  }
+
+  // ---------- Render month sections ----------
+  function renderMonthSections(filtered) {
+    const wrap = $('month-sections');
+    wrap.innerHTML = '';
+    if (filtered.length === 0) {
+      wrap.innerHTML = '<div class="card no-data">' + t('noData') + '</div>';
+      return;
+    }
+    // Group
+    const groups = new Map();
+    filtered.forEach(r => {
+      const key = (r._year && r._month) ? r._year + '-' + String(r._month).padStart(2,'0') : '0000-00';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(r);
+    });
+    const sortedKeys = [...groups.keys()].sort();
+    sortedKeys.forEach(k => {
+      const records = groups.get(k).sort((a,b) => (a._sortDate || Infinity) - (b._sortDate || Infinity));
+      const sec = document.createElement('div'); sec.className = 'month-section'; sec.style.marginBottom = '28px';
+      let title;
+      if (k === '0000-00') title = t('noMonth');
+      else {
+        const [y,m] = k.split('-');
+        if (LANG === 'zh') {
+          title = y + '年' + I18N[LANG].monthNames[+m - 1];
+        } else {
+          title = I18N[LANG].monthNames[+m - 1] + ' ' + y;
+        }
+      }
+      // Grade pills
+      const gradeOrder = ['S+','S','A','B','C','D'];
+      const gradeColors = { 'S+':'var(--s-plus)','S':'var(--s)','A':'var(--a)','B':'var(--b)','C':'var(--c)','D':'var(--d)' };
+      const gCnts = {}; gradeOrder.forEach(g => gCnts[g]=0);
+      records.forEach(r => { const g = r.grading.trim(); if (gCnts[g] !== undefined) gCnts[g]++; });
+      const pills = gradeOrder.filter(g => gCnts[g] > 0).map(g =>
+        '<span class="month-grade-pill" style="background:'+gradeColors[g]+'">'+g+':'+gCnts[g]+'</span>'
+      ).join('');
+
+      sec.innerHTML =
+        '<div class="month-header">' +
+          '<span class="month-name">'+escapeHtml(title)+'</span>' +
+          '<span class="month-count">'+records.length+' '+t('shows')+'</span>' +
+          pills +
+        '</div>' +
+        '<div class="table-wrap">' + buildTableHtml(records) + '</div>';
+      wrap.appendChild(sec);
+    });
+  }
+
+  function buildTableHtml(records) {
+    const cols = [
+      { key: '_no', label: t('col-no'), cls: 'num' },
+      { key: 'source', label: t('col-source'), render: r => '<span class="tag tag-source tag-source-'+r.source+'">'+I18N[LANG].sources[r.source]+'</span>' },
+      { key: 'grading', label: t('col-grade'), render: r => r.grading ? '<span class="tag tag-grade-'+r.grading.replace('+','-plus')+'">'+r.grading+'</span>' : emptyCell() },
+      { key: 'name', label: t('col-name'), cls: 'wrap', render: r => escapeHtml(fld(r,'name')) || emptyCell() },
+      { key: 'category', label: t('col-category'), render: r => {
+          const cat = (r.source === 'sports' && fld(r,'eventType')) ? fld(r,'eventType') : fld(r,'category');
+          return cat ? '<span class="tag-cat">'+escapeHtml(cat)+'</span>' : emptyCell();
+      }},
+      { key: 'artist', label: t('col-artist'), cls: 'wrap', render: r => escapeHtml(fld(r,'artist')) || emptyCell() },
+      { key: 'city', label: t('col-city'), render: r => escapeHtml(fld(r,'city')) || emptyCell() },
+      { key: 'country', label: t('col-country'), render: r => escapeHtml(fld(r,'country')) || emptyCell() },
+      { key: 'poiId', label: t('col-poi'), cls: 'num', render: r => escapeHtml(r.poiId) || emptyCell() },
+      { key: 'startTime', label: t('col-start'), cls: 'date', render: r => fmtDate(r.startTime) },
+      { key: 'endTime', label: t('col-end'), cls: 'date', render: r => fmtDate(r.endTime) },
+      { key: 'infoTime', label: t('col-info'), cls: 'date', render: r => fmtDate(r.infoTime) },
+      { key: 'announceTime', label: t('col-announce'), cls: 'date', render: r => fmtDate(r.announceTime) },
+      { key: 'addedAnnounceTime', label: t('col-added'), cls: 'date', render: r => fmtDate(r.addedAnnounceTime) },
+      { key: 'saleTime', label: t('col-sale'), cls: 'date', render: r => fmtDate(r.saleTime) },
+      { key: 'sale2Time', label: t('col-sale2'), cls: 'date', render: r => fmtDate(r.sale2Time) },
+      { key: 'sale3Time', label: t('col-sale3'), cls: 'date', render: r => fmtDate(r.sale3Time) },
+      { key: 'status', label: t('col-status'), render: r => escapeHtml(fld(r,'status')) || emptyCell() },
+      { key: 'keySites', label: t('col-keysites'), render: r => escapeHtml(fld(r,'keySites')) || emptyCell() },
+      { key: 'pushSites', label: t('col-pushsites'), render: r => escapeHtml(r.pushSites) || emptyCell() },
+      { key: 'remarks', label: t('col-remarks'), cls: 'wrap', render: r => escapeHtml(fld(r,'remarks')) || emptyCell() }
+    ];
+    const head = '<thead><tr>' + cols.map(c => '<th>'+c.label+'</th>').join('') + '</tr></thead>';
+    const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
+    const body = '<tbody>' + records.map((r, i) => {
+      r._no = i + 1;
+      const isNew = r.createdTime && (Date.now() - r.createdTime < SEVEN_DAYS_MS);
+      return '<tr' + (isNew ? ' class="tr-new"' : '') + '>' + cols.map(c => {
+        const cls = c.cls ? ' class="'+c.cls+'"' : '';
+        const val = c.render ? c.render(r) : (c.key === '_no' ? r._no : escapeHtml(r[c.key] || '') || emptyCell());
+        return '<td'+cls+'>'+val+'</td>';
+      }).join('') + '</tr>';
+    }).join('') + '</tbody>';
+    return '<table>' + head + body + '</table>';
+  }
+
+  function fmtDate(s) {
+    if (!s) return emptyCell();
+    return '<span class="date">'+escapeHtml(s)+'</span>';
+  }
+  function emptyCell() { return '<span class="empty">—</span>'; }
+  function escapeHtml(s) {
+    return ('' + (s == null ? '' : s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- I18n apply ----------
+  function applyI18n() {
+    document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const k = el.getAttribute('data-i18n');
+      // Preserve children for the "updated" + span case
+      if (k === 'updated') {
+        el.firstChild.nodeValue = t('updated') + ': ';
+      } else {
+        el.textContent = t(k);
+      }
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+    });
+  }
+
+  // ---------- Wire up ----------
+  $('f-search').oninput = e => { state.search = e.target.value; rerender(); };
+  $('f-active').onchange = e => { state.activeOnly = e.target.checked; rerender(); };
+  $('f-reset').onclick = () => {
+    state.search = ''; state.source = ''; state.grading = ''; state.category = '';
+    state.country = ''; state.year = ''; state.month = ''; state.activeOnly = false;
+    $('f-search').value = ''; $('f-active').checked = false;
+    rerender();
+  };
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.onclick = () => {
+      LANG = btn.dataset.lang;
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b === btn));
+      applyI18n();
+      rerender();
+    };
+  });
+
+  function rerender() {
+    const filtered = applyFilters(RECORDS);
+    $('filter-summary').textContent = filtered.length + ' / ' + RECORDS.length + (LANG === 'zh' ? ' 条记录' : ' records');
+    renderOverview(filtered);
+    renderMonthSections(filtered);
+    buildFilters(); // refresh chip counts/labels (in case lang changed)
+  }
+
+  applyI18n();
+  buildFilters();
+  rerender();
+
+  // fill watermark timestamp
+  function nowText() {
+    const d = new Date();
+    return d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0')
+      + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+  document.body.dataset.watermark = (document.body.dataset.watermark || '').replace('{{NOW}}', nowText());
+})();
+</script>
+</body>
+</html>
