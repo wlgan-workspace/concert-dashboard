@@ -96,6 +96,12 @@ h1 { margin: 0; font-size: 20px; font-weight: 700; color: var(--c-text); letter-
   padding: 10px 28px;
   box-shadow: 0 1px 4px rgba(20,40,80,.04);
 }
+.search-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 28px;
+  background: var(--c-white);
+  border-bottom: 1px solid var(--c-line);
+}
 .filter-row {
   display: flex; align-items: flex-start; column-gap: 8px; row-gap: 10px; flex-wrap: wrap; margin-bottom: 12px;
 }
@@ -118,7 +124,7 @@ h1 { margin: 0; font-size: 20px; font-weight: 700; color: var(--c-text); letter-
 .search-box {
   background: var(--c-white); color: var(--c-text); border: 1px solid var(--c-line);
   padding: 0 10px; height: 30px; border-radius: var(--r-sm); font-size: var(--fz-sm);
-  min-width: 240px; font-family: inherit; transition: border-color .15s;
+  flex: 1; font-family: inherit; transition: border-color .15s;
 }
 .search-box:focus { outline: none; border-color: var(--c-primary); }
 .reset-btn {
@@ -257,7 +263,6 @@ tr.tr-new:hover td { background: #fff3b0; }
   <div class="topbar-actions">
     <button class="lang-btn active" data-lang="zh">中文</button>
     <button class="lang-btn" data-lang="en">English</button>
-    <div class="avatar">TR</div>
   </div>
 </div>
 
@@ -283,12 +288,15 @@ tr.tr-new:hover td { background: #fff3b0; }
   </div>
 </header>
 
+<div class="search-bar">
+  <input type="text" class="search-box" id="f-search" placeholder="搜索 名称 / 艺人 / 城市 / 国家 / 备注…" data-i18n-placeholder="ph-search">
+  <button class="reset-btn" id="f-reset" data-i18n="reset">重置筛选</button>
+</div>
+
 <div class="filter-bar">
   <div class="filter-row">
     <span class="filter-label" data-i18n="lbl-source">类型</span>
     <div id="f-source" class="chips-line"></div>
-    <input type="text" class="search-box" id="f-search" placeholder="搜索 名称 / 艺人 / 城市 / 国家 / 备注…" data-i18n-placeholder="ph-search">
-    <button class="reset-btn" id="f-reset" data-i18n="reset">重置筛选</button>
   </div>
   <div class="filter-row">
     <span class="filter-label" data-i18n="lbl-grading">评级</span>
