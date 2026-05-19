@@ -568,23 +568,27 @@ tr.tr-new:hover td { background: #fff3b0; }
     const yearOpts = [...yearMap.keys()].sort().map(y => [y, yearMap.get(y), y]);
     renderChips('f-year', yearOpts, state.year, v => { state.year = v; rerender(); });
 
-    // Month - sort chronologically
+    // Month - filter by selected year, sort chronologically
     const today = startOfToday();
     const monthMap = new Map();
     for (const r of RECORDS) {
       if (r._year && r._month) {
+        if (state.year && String(r._year) !== state.year) continue;
         const k = r._year + '-' + String(r._month).padStart(2,'0');
         monthMap.set(k, (monthMap.get(k)||0)+1);
       }
     }
     const monthKeys = [...monthMap.keys()].sort();
+    const multiYear = new Set(monthKeys.map(k => k.split('-')[0])).size > 1;
     const monthOpts = monthKeys.map(k => {
       const [y,m] = k.split('-');
       const label = LANG === 'zh'
-        ? I18N[LANG].monthNames[+m - 1]
+        ? (multiYear ? y + '/' : '') + I18N[LANG].monthNames[+m - 1]
         : I18N[LANG].monthNames[+m - 1] + ' ' + y;
       return [k, monthMap.get(k), label];
     });
+    // Reset month selection if it no longer exists in filtered options
+    if (state.month && !monthMap.has(state.month)) state.month = '';
     renderChips('f-month', monthOpts, state.month, v => { state.month = v; rerender(); });
   }
 
