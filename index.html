@@ -227,11 +227,11 @@ table th:nth-child(5)  { min-width: 140px; }
 table th:nth-child(6)  { min-width: 200px; }
 table th:nth-child(8)  { min-width: 100px; }
 /* sticky left columns 1-5 */
-.sticky-1 { position: sticky; left: 0;     z-index: var(--z-sticky-left); background: inherit; }
-.sticky-2 { position: sticky; left: 40px;  z-index: var(--z-sticky-left); background: inherit; }
-.sticky-3 { position: sticky; left: 120px; z-index: var(--z-sticky-left); background: inherit; }
-.sticky-4 { position: sticky; left: 192px; z-index: var(--z-sticky-left); background: inherit; }
-.sticky-5 { position: sticky; left: 474px; z-index: var(--z-sticky-left); background: inherit; }
+.sticky-1 { position: sticky; left: 0;     z-index: var(--z-sticky-left); background: var(--c-white); }
+.sticky-2 { position: sticky; left: 40px;  z-index: var(--z-sticky-left); background: var(--c-white); }
+.sticky-3 { position: sticky; left: 120px; z-index: var(--z-sticky-left); background: var(--c-white); }
+.sticky-4 { position: sticky; left: 192px; z-index: var(--z-sticky-left); background: var(--c-white); }
+.sticky-5 { position: sticky; left: 472px; z-index: var(--z-sticky-left); background: var(--c-white); }
 /* corner cells (sticky top + sticky left) need higher z-index */
 thead th.sticky-1, thead th.sticky-2, thead th.sticky-3,
 thead th.sticky-4, thead th.sticky-5 { z-index: 20; }
@@ -256,7 +256,11 @@ table th:nth-child(19), table th:nth-child(20) { min-width: 160px; }
 table th:nth-child(21) { min-width: 280px; }
 /* new records highlight (added within last 7 days) */
 tr.tr-new td { background: #fffbe6; }
+tr.tr-new td.sticky-1, tr.tr-new td.sticky-2, tr.tr-new td.sticky-3,
+tr.tr-new td.sticky-4, tr.tr-new td.sticky-5 { background: #fffbe6; }
 tr.tr-new:hover td { background: #fff3b0; }
+tr.tr-new:hover td.sticky-1, tr.tr-new:hover td.sticky-2, tr.tr-new:hover td.sticky-3,
+tr.tr-new:hover td.sticky-4, tr.tr-new:hover td.sticky-5 { background: #fff3b0; }
 
 /* ===== Tags & badges ===== */
 .tag {
