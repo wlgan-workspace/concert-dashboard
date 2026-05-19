@@ -169,7 +169,8 @@ h1 { margin: 0; font-size: 20px; font-weight: 700; color: var(--c-text); letter-
 .grade-cnt { font-variant-numeric: tabular-nums; color: var(--c-muted); font-size: var(--fz-xs); min-width: 28px; text-align: right; }
 
 .top-list { display: flex; flex-direction: column; gap: 8px; }
-.top-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; font-size: var(--fz-sm); }
+.top-row { display: grid; grid-template-columns: 28px auto 1fr auto; gap: 8px; align-items: center; font-size: var(--fz-sm); }
+.top-name { white-space: nowrap; }
 .top-rank { color: var(--c-muted); font-size: var(--fz-xs); font-variant-numeric: tabular-nums; }
 .top-cnt { color: var(--c-muted); font-variant-numeric: tabular-nums; font-size: var(--fz-xs); }
 
@@ -642,7 +643,7 @@ tr.tr-new:hover td { background: #fff3b0; }
     const gEl = $('ov-grading');
     gEl.innerHTML = '';
     const gradeOrder = ['S+','S','A','B','C','D'];
-    const gradeColors = { 'S+':'var(--s-plus)','S':'var(--s)','A':'var(--a)','B':'var(--b)','C':'var(--c)','D':'var(--d)' };
+    const gradeColors = { 'S+':'var(--c-danger)','S':'var(--c-warn)','A':'var(--c-success)','B':'var(--c-primary)','C':'var(--c-muted)','D':'var(--c-disabled)' };
     const total = filtered.length || 1;
     const gradeCnts = {};
     gradeOrder.forEach(g => gradeCnts[g] = 0);
@@ -662,13 +663,21 @@ tr.tr-new:hover td { background: #fff3b0; }
     cEl.innerHTML = '';
     const cMap = new Map();
     filtered.forEach(r => {
-      const k = (LANG === 'en' && r.country_en ? r.country_en : r.country || '').trim();
-      if (k) cMap.set(k, (cMap.get(k)||0)+1);
+      const countries = r._countries && r._countries.length ? r._countries : (r.country ? [r.country] : []);
+      countries.forEach(c => {
+        const k = LANG === 'en' ? (translate(c, 'country') || c) : c;
+        if (k) cMap.set(k, (cMap.get(k)||0)+1);
+      });
     });
     const top = [...cMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0, 8);
+    const topMax = top[0] ? top[0][1] : 1;
     top.forEach(([k, c], i) => {
+      const pct = (c / topMax * 100).toFixed(1);
       const row = document.createElement('div'); row.className = 'top-row';
-      row.innerHTML = '<span class="top-rank">#'+(i+1)+'</span><span>'+escapeHtml(k)+'</span><span class="top-cnt">'+c+'</span>';
+      row.innerHTML = '<span class="top-rank">#'+(i+1)+'</span>' +
+        '<span class="top-name">'+escapeHtml(k)+'</span>' +
+        '<div class="grade-bar" style="flex:1"><div class="grade-bar-fill" style="width:'+pct+'%;background:var(--c-primary)"></div></div>' +
+        '<span class="top-cnt">'+c+'</span>';
       cEl.appendChild(row);
     });
   }
