@@ -211,6 +211,12 @@ tbody td {
 }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover td { background: #f8faff; }
+tbody tr:hover td.sticky-1, tbody tr:hover td.sticky-2, tbody tr:hover td.sticky-3,
+tbody tr:hover td.sticky-4, tbody tr:hover td.sticky-5 { background: #f8faff; }
+tr.tr-new td.sticky-1, tr.tr-new td.sticky-2, tr.tr-new td.sticky-3,
+tr.tr-new td.sticky-4, tr.tr-new td.sticky-5 { background: #fffbe6; }
+tr.tr-new:hover td.sticky-1, tr.tr-new:hover td.sticky-2, tr.tr-new:hover td.sticky-3,
+tr.tr-new:hover td.sticky-4, tr.tr-new:hover td.sticky-5 { background: #fff3b0; }
 td.num, td.date { font-variant-numeric: tabular-nums; white-space: nowrap; }
 td.wrap { word-break: break-word; white-space: pre-wrap; }
 .empty { color: var(--c-disabled); }
@@ -220,6 +226,27 @@ table th:nth-child(4)  { min-width: 280px; }
 table th:nth-child(5)  { min-width: 140px; }
 table th:nth-child(6)  { min-width: 200px; }
 table th:nth-child(8)  { min-width: 100px; }
+/* sticky left columns 1-5 */
+.sticky-1 { position: sticky; left: 0;     z-index: var(--z-sticky-left); background: inherit; }
+.sticky-2 { position: sticky; left: 40px;  z-index: var(--z-sticky-left); background: inherit; }
+.sticky-3 { position: sticky; left: 120px; z-index: var(--z-sticky-left); background: inherit; }
+.sticky-4 { position: sticky; left: 192px; z-index: var(--z-sticky-left); background: inherit; }
+.sticky-5 { position: sticky; left: 474px; z-index: var(--z-sticky-left); background: inherit; }
+/* corner cells (sticky top + sticky left) need higher z-index */
+thead th.sticky-1, thead th.sticky-2, thead th.sticky-3,
+thead th.sticky-4, thead th.sticky-5 { z-index: 20; }
+/* right shadow to mark frozen boundary */
+.sticky-5::after {
+  content: ''; position: absolute; top: 0; right: -4px; bottom: 0;
+  width: 4px; background: linear-gradient(to right, rgba(0,0,0,.06), transparent);
+  pointer-events: none;
+}
+/* fix col widths so sticky left values are exact */
+table th.sticky-1 { width: 40px;  min-width: 40px;  max-width: 40px; }
+table th.sticky-2 { width: 80px;  min-width: 80px;  max-width: 80px; }
+table th.sticky-3 { width: 72px;  min-width: 72px;  max-width: 72px; }
+table th.sticky-4 { width: 280px; min-width: 280px; }
+table th.sticky-5 { width: 140px; min-width: 140px; }
 table th:nth-child(10), table th:nth-child(11), table th:nth-child(15),
 table th:nth-child(16), table th:nth-child(17) { min-width: 100px; }
 table th:nth-child(12) { min-width: 120px; }
@@ -767,15 +794,20 @@ tr.tr-new:hover td { background: #fff3b0; }
       { key: 'pushSites', label: t('col-pushsites'), render: r => escapeHtml(r.pushSites) || emptyCell() },
       { key: 'remarks', label: t('col-remarks'), cls: 'wrap', render: r => escapeHtml(fld(r,'remarks')) || emptyCell() }
     ];
-    const head = '<thead><tr>' + cols.map(c => '<th>'+c.label+'</th>').join('') + '</tr></thead>';
+    const head = '<thead><tr>' + cols.map((c, i) => {
+      const sc = i < 5 ? ' class="sticky-'+(i+1)+'"' : '';
+      return '<th'+sc+'>'+c.label+'</th>';
+    }).join('') + '</tr></thead>';
     const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
     const body = '<tbody>' + records.map((r, i) => {
       r._no = i + 1;
       const isNew = r.createdTime && (Date.now() - r.createdTime < SEVEN_DAYS_MS);
-      return '<tr' + (isNew ? ' class="tr-new"' : '') + '>' + cols.map(c => {
-        const cls = c.cls ? ' class="'+c.cls+'"' : '';
+      return '<tr' + (isNew ? ' class="tr-new"' : '') + '>' + cols.map((c, ci) => {
+        const sc = ci < 5 ? ' sticky-'+(ci+1) : '';
+        const cls = (c.cls ? c.cls : '') + sc;
+        const clsAttr = cls.trim() ? ' class="'+cls.trim()+'"' : '';
         const val = c.render ? c.render(r) : (c.key === '_no' ? r._no : escapeHtml(r[c.key] || '') || emptyCell());
-        return '<td'+cls+'>'+val+'</td>';
+        return '<td'+clsAttr+'>'+val+'</td>';
       }).join('') + '</tr>';
     }).join('') + '</tbody>';
     return '<table>' + head + body + '</table>';
