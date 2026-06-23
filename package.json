@@ -1,0 +1,15 @@
+{
+  "name": "concert-dashboard-sync",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync.mjs",
+    "discover": "node scripts/sync.mjs --discover",
+    "list-tables": "node scripts/sync.mjs --list-tables",
+    "list-views": "node scripts/sync.mjs --list-views",
+    "bootstrap": "node scripts/bootstrap-auth.mjs"
+  },
+  "dependencies": {
+    "libsodium-wrappers": "^0.7.13"
+  }
+}

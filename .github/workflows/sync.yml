@@ -1,0 +1,49 @@
+name: sync-feishu
+on:
+  schedule:
+    # Beijing 09:05 / 14:05 / 20:05 — runs frequently to keep the 30d refresh window from lapsing
+    - cron: '5 1 * * *'
+    - cron: '5 6 * * *'
+    - cron: '5 12 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-feishu
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci || npm install
+      - name: Run sync
+        env:
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+          FEISHU_REFRESH_TOKEN: ${{ secrets.FEISHU_REFRESH_TOKEN }}
+          FEISHU_APP_TOKEN: ${{ secrets.FEISHU_APP_TOKEN }}
+          FEISHU_TABLE_ID: ${{ secrets.FEISHU_TABLE_ID }}
+          FEISHU_VIEW_ID: ${{ secrets.FEISHU_VIEW_ID }}
+          FEISHU_WIKI_NODE: ${{ secrets.FEISHU_WIKI_NODE }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/sync.mjs
+      - name: Commit if changed
+        run: |
+          if [ -n "$(git status --porcelain index.html scripts/translation-cache.json)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add index.html scripts/translation-cache.json
+            git commit -m "deploy: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git push
+          else
+            echo "No changes."
+          fi

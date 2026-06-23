@@ -1,0 +1,114 @@
+{
+  "_comment": "Three tables, each with its own column-name map. `source` is hard-tagged per table. Common dict at the bottom.",
+
+  "tables": [
+    {
+      "table_id": "tbl1DG9onb9LFJKU",
+      "source": "cooperation",
+      "_view_note": "view vewsAKaDCP has a broken filter that references hidden fields; pulling whole table (UI also falls back to 116 rows).",
+      "fields": [
+        { "from": "活动名称 Name",              "to": "name" },
+        { "from": "品类 Category",              "to": "category" },
+        { "from": "POIID",                      "to": "poiId" },
+        { "from": "演出开始时间 Start Time",    "to": "startTime", "kind": "date" },
+        { "from": "演出结束时间 End Time",      "to": "endTime",   "kind": "date" },
+        { "from": "开售时间 Sale Time",         "to": "saleTime",  "kind": "date" },
+        { "from": "二次开售时间 Second Sale Time", "to": "sale2Time", "kind": "date" },
+        { "from": "三次开售时间 Third Sale Time",  "to": "sale3Time", "kind": "date" },
+        { "from": "评级 Grading",               "to": "grading" },
+        { "from": "备注 Remarks",               "to": "remarks" },
+        { "from": "演出艺人 Artist",            "to": "artist" },
+        { "from": "举办城市 City",              "to": "city" },
+        { "from": "举办国家 Country",           "to": "country" }
+      ]
+    },
+    {
+      "table_id": "tblBL1GcYwK0ozLK",
+      "source": "non_cooperation",
+      "view_id": "vewsAKaDCP",
+      "fields": [
+        { "from": "活动名称 Name",              "to": "name" },
+        { "from": "品类 Category",              "to": "category" },
+        { "from": "POIID",                      "to": "poiId" },
+        { "from": "演出开始时间  Start Time",   "to": "startTime", "kind": "date" },
+        { "from": "演出结束时间 End Time",      "to": "endTime",   "kind": "date" },
+        { "from": "信息披露时间 Information Disclosure Time", "to": "infoTime",         "kind": "date" },
+        { "from": "官宣时间 Official Announcement Time",      "to": "announceTime",     "kind": "date" },
+        { "from": "加场官宣时间 Added-show Announcement Time","to": "addedAnnounceTime","kind": "date" },
+        { "from": "开售时间 Sale Time",         "to": "saleTime",  "kind": "date" },
+        { "from": "二次开售时间 Second Sale Time", "to": "sale2Time", "kind": "date" },
+        { "from": "三次开售时间 Third Sale Time",  "to": "sale3Time", "kind": "date" },
+        { "from": "评级 Grading",               "to": "grading" },
+        { "from": "备注 Remarks",               "to": "remarks" },
+        { "from": "演出艺人 Artist",            "to": "artist" },
+        { "from": "举办城市 City",              "to": "city" },
+        { "from": "举办国家 Country",           "to": "country" },
+        { "from": "当前状态 Status",            "to": "status" },
+        { "from": "重点关注站点 Key Sites",     "to": "keySites" },
+        { "from": "推送站点",                   "to": "pushSites" }
+      ]
+    },
+    {
+      "table_id": "tbl37GHXMNYZuqnf",
+      "source": "sports",
+      "view_id": "vewsAKaDCP",
+      "fields": [
+        { "from": "活动名称 Name",              "to": "name" },
+        { "from": "POIID",                      "to": "poiId" },
+        { "from": "活动开始时间 Start Time",    "to": "startTime", "kind": "date" },
+        { "from": "活动结束时间 End Time",      "to": "endTime",   "kind": "date" },
+        { "from": "信息披露时间 Information Disclosure Time", "to": "infoTime", "kind": "date" },
+        { "from": "报名时间（马拉松）Registration Time (Marathon)", "to": "registrationTime", "kind": "date" },
+        { "from": "开售时间 Sale Time",         "to": "saleTime",  "kind": "date" },
+        { "from": "二次开售时间 Second Sale Time", "to": "sale2Time", "kind": "date" },
+        { "from": "三次开售时间 Third Sale Time",  "to": "sale3Time", "kind": "date" },
+        { "from": "评级 Grading",               "to": "grading" },
+        { "from": "备注 Remarks",               "to": "remarks" },
+        { "from": "明星选手 Star Player",       "to": "artist" },
+        { "from": "举办城市 City",              "to": "city" },
+        { "from": "举办国家 Country",           "to": "country" },
+        { "from": "当前状态 Status",            "to": "status" },
+        { "from": "赛事类型 Category",          "to": "eventType" }
+      ]
+    }
+  ],
+
+  "dict": {
+    "country": {
+      "中国": "China",
+      "新加坡": "Singapore",
+      "日本": "Japan",
+      "泰国": "Thailand",
+      "澳大利亚": "Australia",
+      "英国": "UK",
+      "阿联酋": "UAE",
+      "马来西亚": "Malaysia",
+      "吉隆坡": "Kuala Lumpur",
+      "韩国": "South Korea",
+      "香港": "Hong Kong",
+      "美国": "USA",
+      "法国": "France",
+      "加拿大": "Canada",
+      "墨西哥": "Mexico",
+      "南非": "South Africa",
+      "亚洲": "Asia"
+    },
+    "category": {
+      "其他 Others": "Others",
+      "否 NO": "No",
+      "是 YES": "Yes",
+      "展览 Exhibition": "Exhibition",
+      "演唱会 Concert": "Concert",
+      "见面会 Fanmeeting": "Fanmeeting",
+      "音乐节 Music Festival": "Music Festival"
+    },
+    "eventType": {
+      "乒乓球": "Table Tennis",
+      "格斗": "Combat Sports",
+      "电竞": "Esports",
+      "篮球": "Basketball",
+      "足球": "Football",
+      "马拉松": "Marathon"
+    }
+  }
+}
