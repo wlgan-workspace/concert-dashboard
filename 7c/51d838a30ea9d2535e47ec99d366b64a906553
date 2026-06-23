@@ -1,0 +1,23 @@
+scripts/sync.mjs
+  s_b0b473279191a9::t_f8576d4686b816 131-137
+package.json
+  s_b0b473279191a9::t_131fb600e191e7 13
+package-lock.json
+  ai_agent 9,12-16,18-28,30-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.18-trip",
+  "base_commit_sha": "7c51d838a30ea9d2535e47ec99d366b64a906553",
+  "prompts": {},
+  "sessions": {
+    "s_b0b473279191a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62f320c6-e672-40c4-ae76-37f2b197b09a",
+        "model": "arn:aws:bedrock:us-west-2:133197901387:application-inference-profile/ypvzpmevzxdl"
+      },
+      "human_author": "Wenlu <wenlu@base.ctripsmartdns.com>"
+    }
+  }
+}
