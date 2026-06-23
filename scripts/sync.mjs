@@ -128,13 +128,13 @@ async function writeGithubSecret(repo, pat, name, value) {
   if (!keyRes.ok) throw new Error(`GitHub public-key fetch failed: ${keyRes.status} ${await keyRes.text()}`);
   const { key, key_id } = await keyRes.json();
 
-  // 2. Encrypt with libsodium sealed box. Lazy-import so local runs without sodium still work.
-  const sodium = await import('libsodium-wrappers');
-  await sodium.ready;
-  const binkey = sodium.from_base64(key, sodium.base64_variants.ORIGINAL);
-  const binval = sodium.from_string(value);
-  const encrypted = sodium.crypto_box_seal(binval, binkey);
-  const encrypted_value = sodium.to_base64(encrypted, sodium.base64_variants.ORIGINAL);
+  // 2. Encrypt with NaCl sealed box (libsodium sealed box, but a CommonJS
+  //    package — avoids the ESM resolution bug in libsodium-wrappers on Node 24+).
+  const tweetsodium = (await import('tweetsodium')).default;
+  const messageBytes = Buffer.from(value);
+  const keyBytes = Buffer.from(key, 'base64');
+  const encryptedBytes = tweetsodium.seal(messageBytes, keyBytes);
+  const encrypted_value = Buffer.from(encryptedBytes).toString('base64');
 
   // 3. PUT secret.
   const putRes = await fetch(`https://api.github.com/repos/${repo}/actions/secrets/${name}`, {
